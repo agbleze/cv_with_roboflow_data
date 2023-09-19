@@ -105,8 +105,4 @@ class BackgroundImageDetector(object):
             
     
     
-    
-
-
-
 
