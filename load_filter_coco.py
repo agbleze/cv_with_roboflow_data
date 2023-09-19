@@ -70,26 +70,37 @@ coco
 
 class BackgroundImageDetector(object):
     def __init__(self, coco_annotation_file, img_class_name):
+        """A class with methods that determines if an image should be used a background image.
+            The aim is to filter-out images that contain objects that will be used for copy-paste 
+            augmentation.
+        
+        Args:
+            coco_annotation_file (json): json file containing coco annotation
+            img_class_name (_type_): name of image category that background image should not contain - using the
+                                    object being used for copy-paste.
+        """
         self.coco_annotation_file = coco_annotation_file
         self.img_class_name = img_class_name
         
         
-    def check_image_contains_class(coco_annotation_file, image_name, class_name):
+    def check_image_contains_class(self,coco_annotation_file, image_name, class_name):
+        self.image_name = image_name
         ## get the names of all images which contain this class category
-        coco = COCO(annfile_train)
+        coco = COCO(self.coco_annotation_file)
         catIds  = coco.getCatIds(catNms=class_name)
         imgIds = coco.getImgIds(catIds=catIds)
         imgIds = coco.getImgIds(imgIds=imgIds)
         img_loads = coco.loadImgs(imgIds)
-        imgs_names_for_class = [load['file_name'] for load in img_loads]
+        self.imgs_names_for_class = [load['file_name'] for load in img_loads]
         
         ## check if image contains this class
-        img_contains_class = [True if image_name in imgs_names_for_class else False]
+    def _is_class_in_image(self):
+        img_contains_class = [True if self.image_name in self.imgs_names_for_class else False]
         
         if not img_contains_class:
-            background_image = image_name
+            background_image = self.image_name
         else:
-            print(f'{image_name} have {class_name} hence not considered background image for copy paste')
+            print(f'{self.image_name} have {class_name} hence not considered background image for copy paste')
             
             
     
