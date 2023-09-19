@@ -67,8 +67,27 @@ plt.imshow(train_img)
 
 coco
 #%%
-def check_image_contains_class(annotation, image_name, class_name):
-    pass
+def check_image_contains_class(coco_annotation_file, image_name, class_name):
+    ## get the names of all images which contain this class category
+    coco = COCO(annfile_train)
+    catIds  = coco.getCatIds(catNms=class_name)
+    imgIds = coco.getImgIds(catIds=catIds)
+    imgIds = coco.getImgIds(imgIds=imgIds)
+    img_loads = coco.loadImgs(imgIds)
+    imgs_names_for_class = [load['file_name'] for load in img_loads]
+    
+    ## check if image contains this class
+    img_contains_class = [True if image_name in imgs_names_for_class else False]
+    
+    if not img_contains_class:
+        background_image = image_name
+    else:
+        print(f'{image_name} have {class_name} hence not considered background image for copy paste')
+        
+        
+    
+    
+    
 
 
 
