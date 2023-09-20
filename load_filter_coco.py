@@ -105,4 +105,9 @@ class BackgroundImageDetector(object):
             
     
     
+#%%
 
+def plot_image_with_annotation(img_name):
+    coco = COCO(annotation_file=annfile_train)
+    coco.getCatIds()
+    
