@@ -91,7 +91,7 @@ class BackgroundImageDetector(object):
         imgIds = coco.getImgIds(catIds=catIds)
         imgIds = coco.getImgIds(imgIds=imgIds)
         self.img_loads = coco.loadImgs(imgIds)
-        self.imgs_names_for_class = [load['file_name'] for load in img_loads]
+        self.imgs_names_for_class = [load['file_name'] for load in self.img_loads]
         
         ## check if image contains this class
     def _is_class_in_image(self):
@@ -100,14 +100,16 @@ class BackgroundImageDetector(object):
         if not img_contains_class:
             background_image = self.image_name
         else:
-            print(f'{self.image_name} have {class_name} hence not considered background image for copy paste')
+            print(f'{self.image_name} have {self.img_class_name} hence not considered background image for copy paste')
             
-            
-    
-    
-#%%
 
-def plot_image_with_annotation(image_folder, img_name):
-    coco = COCO(annotation_file=annfile_train)
-    coco.getCatIds()
+    def plot_image_with_annotation(image_folder, img_name):
+        pass
     
+    
+    
+    
+    
+    
+    
+        
