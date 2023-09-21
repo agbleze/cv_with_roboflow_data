@@ -103,8 +103,9 @@ class BackgroundImageDetector(object):
             print(f'{self.image_name} have {self.img_class_name} hence not considered background image for copy paste')
             
 
-    def plot_image_with_annotation(image_folder, img_name):
-        pass
+    def plot_image_with_annotation(self, image_folder, img_name):
+        imgs = plt.imread(f"{image_folder}/{self.imgs_names_for_class}")
+        plt.imshow(imgs)
     
     
     
