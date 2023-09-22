@@ -81,18 +81,21 @@ class BackgroundImageDetector(object):
         """
         self.coco_annotation_file = coco_annotation_file
         self.img_class_name = img_class_name
+        self.coco = COCO(self.coco_annotation_file)
         
         
     def check_image_contains_class(self,coco_annotation_file, image_name, class_name):
         self.image_name = image_name
         ## get the names of all images which contain this class category
-        coco = COCO(self.coco_annotation_file)
+        
         catIds  = coco.getCatIds(catNms=class_name)
         imgIds = coco.getImgIds(catIds=catIds)
         imgIds = coco.getImgIds(imgIds=imgIds)
         self.img_loads = coco.loadImgs(imgIds)
         self.imgs_names_for_class = [load['file_name'] for load in self.img_loads]
-        
+    
+    def get_anns(self):
+        self.coco.getAnnIds(imgIds=img['id'], catIds=catIds, iscrowd=None)    
         ## check if image contains this class
     def _is_class_in_image(self):
         img_contains_class = [True if self.image_name in self.imgs_names_for_class else False]
@@ -104,6 +107,7 @@ class BackgroundImageDetector(object):
             
 
     def plot_image_with_annotation(self, image_folder, img_name):
+        
         imgs = plt.imread(f"{image_folder}/{self.imgs_names_for_class}")
         plt.imshow(imgs)
     
