@@ -6,6 +6,8 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from glob import glob
+import cv2
+from __future__ import division
 
 
 
