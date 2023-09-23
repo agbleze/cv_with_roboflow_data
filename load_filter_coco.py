@@ -124,5 +124,41 @@ def show_hsv(hsv):
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
     show(rgb)    
     
+def show_mask(mask):
+    plt.figure(figsize=(10, 10))
+    plt.imshow(mask, cmap="gray")
     
+def overlay_mask(mask, image):
+    rgb_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+    img = cv2.addWeighted(src1=rgb_mask, alpha=0.5, src2=image, beta=0.5, gamma=0)
+    show(img)
+    
+def find_biggest_contour(image):
+    image = image.copy()
+    im2, contours, hierarchy = cv2.findContours(image=image, mode=cv2.RETR_LIST, method=cv2.CHAIN_APPRO)
+    contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
+    biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+    
+    mask = np.zeros(image.shape, np.uint8)
+    cv2.drawContours(image=mask, contours=[biggest_contour],
+                     contourIdx=-1, color=255, 
+                     thickness=-1
+                     )
+    return biggest_contour, mask
+
+
+def circle_contour(image, contour):
+    image_with_ellipse = image.copy()
+    ellipse = cv2.fitEllipse(contour)
+    cv2.ellipse(img=image_with_ellipse, box=ellipse, color=(0,255,0), thinckness=2)
+    return image_with_ellipse
+
+
+ # loading image display
+image = cv2.imread() 
+show(image)  
+
+
+
+        
         
