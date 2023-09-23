@@ -115,10 +115,14 @@ class BackgroundImageDetector(object):
     
     
     
-    def show_image(image):
-        plt.figure(figsize=(15, 15))
+def show(image):
+    plt.figure(figsize=(15, 15))
+    plt.imshow(image, interpolation="nearest")
     
-    
+
+def show_hsv(hsv):
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    show(rgb)    
     
     
         
