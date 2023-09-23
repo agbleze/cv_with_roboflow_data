@@ -113,6 +113,8 @@ class BackgroundImageDetector(object):
     
     
     
+    def show_image(image):
+        plt.figure(figsize=(15, 15))
     
     
     
