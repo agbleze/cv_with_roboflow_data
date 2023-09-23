@@ -13,6 +13,11 @@ from __future__ import division
 
 annfile_train = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train/_annotations.coco.json"
 
+#%%
+train_folder = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train"
+
+train_imgs = glob(f"{train_folder}/*.jpg")
+
 coco = COCO(annfile_train)
 
 #%%
@@ -61,15 +66,16 @@ train_imgfiles[0]
 
 #%%
 
-train_img = plt.imread(train_imgfiles[0])
+train_img = plt.imread(train_imgfiles[5])
 
 plt.imshow(train_img)
 
 #%%
 
 coco
-#%%
 
+
+#%%
 class BackgroundImageDetector(object):
     def __init__(self, coco_annotation_file, img_class_name):
         """A class with methods that determines if an image should be used a background image.
@@ -154,11 +160,25 @@ def circle_contour(image, contour):
     return image_with_ellipse
 
 
- # loading image display
-image = cv2.imread() 
+#%% loading image display
+image = cv2.imread(train_imgs[0]) 
 show(image)  
 
 
+#%%
+image = cv2.cvtColor(src=image, code=cv2.COLOR_BGR2RGB)
+show(image)
 
-        
-        
+#%% resize image
+
+max_dimension = max(image.shape)        
+
+scale = 700/max_dimension
+
+img_resize = cv2.resize(src=image, dsize=None, fy=scale, fx=scale)  
+show(img_resize)      
+
+# %%
+img_resize[:,8]
+
+# %%
