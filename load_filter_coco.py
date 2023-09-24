@@ -181,4 +181,30 @@ show(img_resize)
 # %%
 img_resize[:,8]
 
-# %%
+# %% bluring with gaussian kernel
+image_blur = cv2.GaussianBlur(src=img_resize, ksize=(7,7), sigmaX=0)
+show(image_blur)
+
+#%% convert rgb to hsv
+image_blur_hsv = cv2.cvtColor(src=image_blur, code=cv2.COLOR_RGB2HSV)
+show(image_blur)
+
+#%% ####### preparing mask ######
+# create mask that detect specific color spectrum
+# mask perform feature extraction using color
+# mask 2 uses brightness factors
+
+# filter by color
+min_red = np.array([0, 100, 80])
+max_red = np.array([10, 256, 256])
+mask1 = cv2.inRange(src=image_blur_hsv, lowerb=min_red, upperb=max_red)
+show(mask1)
+
+# filter by brightness
+min_red_brightness = np.array([170, 100, 80])
+max_red_brightness = np.array([180, 256, 256])
+mask2 = cv2.inRange(src=image_blur_hsv, lowerb=min_red_brightness, 
+                    upperb=max_red_brightness
+                    )
+
+show(mask2)
