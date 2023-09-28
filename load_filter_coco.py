@@ -66,7 +66,7 @@ train_imgfiles[0]
 
 #%%
 
-train_img = plt.imread(train_imgfiles[5])
+train_img = plt.imread(train_imgfiles[70])
 
 plt.imshow(train_img)
 
@@ -120,7 +120,8 @@ class BackgroundImageDetector(object):
         plt.imshow(imgs)
     
     
-    
+
+#%%    
 def show(image):
     plt.figure(figsize=(15, 15))
     plt.imshow(image, interpolation="nearest")
@@ -139,17 +140,29 @@ def overlay_mask(mask, image):
     img = cv2.addWeighted(src1=rgb_mask, alpha=0.5, src2=image, beta=0.5, gamma=0)
     show(img)
     
+# def find_biggest_contour(image):
+#     image = image.copy()
+#     im2, contours, hierarchy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+#     contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
+#     biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+    
+#     mask = np.zeros(image.shape, np.uint8)
+#     cv2.drawContours(image=mask, contours=[biggest_contour],
+#                      contourIdx=-1, color=255, 
+#                      thickness=-1
+#                      )
+#     return biggest_contour, mask
+
+
 def find_biggest_contour(image):
     image = image.copy()
-    im2, contours, hierarchy = cv2.findContours(image=image, mode=cv2.RETR_LIST, method=cv2.CHAIN_APPRO)
+    im2,contours, hierarchy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
     contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
     biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
-    
+ 
     mask = np.zeros(image.shape, np.uint8)
-    cv2.drawContours(image=mask, contours=[biggest_contour],
-                     contourIdx=-1, color=255, 
-                     thickness=-1
-                     )
+    cv2.drawContours(mask, [biggest_contour], -1, 255, -1)
     return biggest_contour, mask
 
 
@@ -161,13 +174,16 @@ def circle_contour(image, contour):
 
 
 #%% loading image display
-image = cv2.imread(train_imgs[0]) 
+image = cv2.imread(train_imgs[70]) 
 show(image)  
 
 
 #%%
 image = cv2.cvtColor(src=image, code=cv2.COLOR_BGR2RGB)
 show(image)
+
+#%%
+cv2.COLOR_BGR2RGB
 
 #%% resize image
 
@@ -179,7 +195,7 @@ img_resize = cv2.resize(src=image, dsize=None, fy=scale, fx=scale)
 show(img_resize)      
 
 # %%
-img_resize[:,8]
+#img_resize[:,8]
 
 # %% bluring with gaussian kernel
 image_blur = cv2.GaussianBlur(src=img_resize, ksize=(7,7), sigmaX=0)
@@ -187,24 +203,71 @@ show(image_blur)
 
 #%% convert rgb to hsv
 image_blur_hsv = cv2.cvtColor(src=image_blur, code=cv2.COLOR_RGB2HSV)
-show(image_blur)
+show(image_blur_hsv)
 
 #%% ####### preparing mask ######
 # create mask that detect specific color spectrum
 # mask perform feature extraction using color
 # mask 2 uses brightness factors
 
-# filter by color
+#%% filter by color
 min_red = np.array([0, 100, 80])
-max_red = np.array([10, 256, 256])
+max_red = np.array([180, 256, 256])
 mask1 = cv2.inRange(src=image_blur_hsv, lowerb=min_red, upperb=max_red)
 show(mask1)
 
-# filter by brightness
-min_red_brightness = np.array([170, 100, 80])
+#%% filter by brightness
+min_red_brightness = np.array([0, 100, 80])
 max_red_brightness = np.array([180, 256, 256])
 mask2 = cv2.inRange(src=image_blur_hsv, lowerb=min_red_brightness, 
                     upperb=max_red_brightness
                     )
 
 show(mask2)
+
+#%% concatenate both masks for better feature extraction
+mask = mask1 + mask2
+show(mask)
+
+#%% ############### post processing of mask #########
+kernel = cv2.getStructuringElement(shape=cv2.MORPH_ELLIPSE, ksize=(15,15))
+mask_closed = cv2.morphologyEx(src=mask, op=cv2.MORPH_CLOSE, kernel=kernel)
+show(mask_closed)
+
+#%%
+mask_clean = cv2.morphologyEx(src=mask_closed, op=cv2.MORPH_OPEN, kernel=kernel)
+show(mask_clean)
+
+#%% ###### applying mask #####
+# extract biggest bounding box
+big_contour, red_mask = find_biggest_contour(mask_clean)
+#show(big_contour)
+#show(red_mask)
+
+#%% apply mask
+overlay = overlay_mask(red_mask, image)
+
+# draw bounding box
+circled = circle_contour(overlay, big_contour)
+show(circled)
+
+
+
+
+
+# %%
+import pandas as pd
+import json
+
+f = open("/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train/_annotations.coco.json")
+
+annfile_json = json.load(f)
+
+#%%
+pd.json_normalize(annfile_json)
+ 
+ # %%
+ 
+ 
+ 
+ 
