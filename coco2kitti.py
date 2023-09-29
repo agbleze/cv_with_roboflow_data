@@ -84,3 +84,7 @@ if __name__ == '__main__':
     else:
         os.mkdir('./labels')
         coco2kitti(catNms=nms, annFile=annFile)
+        
+        
+        
+        
