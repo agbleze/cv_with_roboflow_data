@@ -6,6 +6,7 @@ __author__ = "Jon Barker"
 import os
 from pycocotools.coco import COCO
 from glob import glob
+from apply_coco2kitti import timing
 
 annfile_train = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train/_annotations.coco.json"
 
@@ -22,6 +23,7 @@ cats = coco.loadCats(coco.getCatIds())
 # get names of categories
 nms = [cat['name'] for cat in cats]
 
+@timing
 def coco2kitti(catNms, annFile):
 
     # initialize COCO api for instance annotations
