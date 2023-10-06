@@ -53,6 +53,11 @@ coco.loadAnns(annIds)
 
 
 
+TO DO:
+    1. Develop balance image data splitting
+    
+
+
 #%%
 
 # These settings assume this script is in the annotations directory
