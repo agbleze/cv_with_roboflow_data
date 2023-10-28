@@ -104,7 +104,48 @@ results = cl.results
 
 #%%
 
+results.keys()
 
+#%%
+pd.DataFrame.from_dict(results[[]]).rename(columns={'labels': })
+
+#%%
+
+results#[['labels', 'filenames']]
+
+#%%
+results_selected = {key: value for key, value in results.items() if key not in ['img', 'feat', 'xycoord']}
+results_selected
+
+
+#%%
+
+pd.DataFrame.from_dict(results_selected)
+
+#%%
+len(results['img'])
+
+#%%
+import numpy as np
+results['feat'][210]
+
+
+#%%
+
+result_dict = {f"{results['filenames'][210]}": f"{list(results['feat'][210])}"}
+result_dict
+
+#%%
+pd.DataFrame.from_dict(result_dict)
+
+
+
+#%%
+
+len(results['feat'].flatten())
+#%%
+
+len(results['filenames'])
 
 
 
