@@ -95,10 +95,6 @@ cl.results.keys()
 # %%
 import pandas as pd
 
-
-#%%
-
-pd.DataFrame.from_dict(cl.results)
 # %%
 results = cl.results
 
@@ -107,53 +103,67 @@ results = cl.results
 results.keys()
 
 #%%
-pd.DataFrame.from_dict(results[[]]).rename(columns={'labels': })
-
-#%%
-
-results#[['labels', 'filenames']]
-
-#%%
 results_selected = {key: value for key, value in results.items() if key not in ['img', 'feat', 'xycoord']}
 results_selected
 
 
 #%%
 
-pd.DataFrame.from_dict(results_selected)
+results_cluster_df = pd.DataFrame.from_dict(results_selected).rename(columns={'labels': 'cluster'})
 
 #%%
-len(results['img'])
-
-#%%
-import numpy as np
-results['feat'][210]
+from sklearn.model_selection import train_test_split
 
 
 #%%
 
-result_dict = {f"{results['filenames'][210]}": f"{list(results['feat'][210])}"}
-result_dict
-
-#%%
-pd.DataFrame.from_dict(result_dict)
+train_df, test_df = train_test_split(results_cluster_df, train_size=0.7, shuffle=True, random_state=2023,
+                                    stratify=results_cluster_df[["cluster"]]
+                                    )
 
 
 
 #%%
+train_df['cluster'].value_counts()
 
-len(results['feat'].flatten())
 #%%
+test_df['cluster'].value_counts()
 
-len(results['filenames'])
+#%%
+# len(results['img'])
+
+# #%%
+# import numpy as np
+# results['feat'][210]
+
+
+# #%%
+
+# result_dict = {f"{results['filenames'][210]}": f"{list(results['feat'][210])}"}
+# result_dict
+
+# #%%
+# pd.DataFrame.from_dict(result_dict)
+
+
+
+# #%%
+
+# len(results['feat'].flatten())
+# #%%
+
+# len(results['filenames'])
 
 
 
 
 #%% 
-# TO DO:
-# bUILD a platform that allows you to upload a folder of images 
+# TO DO: First 3 are hackerton presentation critical
+# bUILD a platform that allows you to upload a folder of images  / zip files
 # undertakes image clustering and visualizes the results
+# shows a table of images names and the cluster they belong to
+
+## TODO: These are nice to have for fuller functionality of the platform
 # Functionality for data spliting by sampling from different groups to increase dissimilarity
 # Allows for downloading of data into train, test, validation, validation 
 # to increase randomness and generalizability
