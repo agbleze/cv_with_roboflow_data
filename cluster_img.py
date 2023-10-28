@@ -74,6 +74,50 @@ cl.scatter(zoom=None)
 cl.scatter(zoom=1)
 
 
+#%%
+cl.scatter(zoom=1, plt_all=True, figsize=(150,100))
+
+
+#%%
+cl.plot_unique(img_mean=False)
+
+#%%
+cl.scatter(dotsize=10, img_mean=False)
+
+
+# %%
+cl.results.keys()
+
+
+#TO DO
+###  
+
+# %%
+import pandas as pd
+
+
+#%%
+
+pd.DataFrame.from_dict(cl.results)
+# %%
+results = cl.results
+
+#%%
+
+
+
+
+
+
+#%% 
+# TO DO:
+# bUILD a platform that allows you to upload a folder of images 
+# undertakes image clustering and visualizes the results
+# Functionality for data spliting by sampling from different groups to increase dissimilarity
+# Allows for downloading of data into train, test, validation, validation 
+# to increase randomness and generalizability
+
+
 
 
 
