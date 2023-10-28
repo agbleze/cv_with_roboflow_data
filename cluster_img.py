@@ -170,6 +170,21 @@ test_df['cluster'].value_counts()
 
 
 
+# features to build
+## upload button
+## `cluster images` button -- only shows after uploading images
+##--- Default determines optimal clusters to use
+## Select Option to determine the number of clusters to use
+## Graphs are for visualization of clustered images  -- matplotlib graph is used
+##--- Option to customize graph with 
+## Table visualization of cluster images names and clusters
+
+## Nice to have
+## Data split button
+##--- After clicking on the split button, two buttons should be created for the download of the train and test data splitted
+##--- Table of summary staticts of the splits shown -- % of images per cluster / target labels in train and test images / multiple labels for multiple object detection can be combined as a single label
+
+
 
 
 # %%
