@@ -177,6 +177,7 @@ with zipfile.ZipFile(filename, "r") as zipfile:
 #%%
 import cv2
 from zipfile import ZipFile
+from glob import glob
 contents_test = "valid.zip"
 folder_name = contents_test.split(".")[0]
 with ZipFile(contents_test, "r") as file:
@@ -187,6 +188,9 @@ img_folder = os.path.join(extract_folder, folder_name)
         
 img = glob(f"{img_folder}/*.jpg")[0]
 
+#%%
+
+img
 
 #%%
 
