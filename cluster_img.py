@@ -130,6 +130,56 @@ train_df['cluster'].value_counts()
 test_df['cluster'].value_counts()
 
 #%%
+class ImageClusterCreator(object):
+    def __init__(self, list_of_contents, list_of_names) -> None:
+        self.list_of_contents = list_of_contents
+        self.list_of_names = list_of_names
+        folder_name = list_of_names[0].split(".")[0]
+        self.zip_file = None
+        with ZipFile(list_of_names[0], "r") as file:
+                extract_folder = "img_extract_folder"
+                file.extractall(extract_folder)
+        self.img_folder_path = os.path.join(extract_folder, folder_name)
+        
+    def extract_img_features(self, method="pca"): 
+        self.cl = Clustimage(method="pca")
+        self.cl.fit_transform(self.img_folder_path)
+        
+    def plot_clustered_imgs(self, zoom=1, fig_height=150, fig_width=100,
+                            plt_all=True, **kwargs):
+        self.cl.scatter(zoom=zoom, plt_all=plt_all, 
+                        figsize=(fig_height,fig_width)
+                        )
+    @property    
+    def img_cluster_result_df(self):
+        results = self.cl.results
+        results_selected = {key: value for key, value in results.items() 
+                            if key not in ['img', 'feat', 'xycoord']
+                            }
+        self.results_cluster_df = pd.DataFrame.from_dict(results_selected).rename(columns={'labels': 'cluster'})
+        return self.results_cluster_df
+    
+    def split_train_test_imgs(self):
+        results_cluster_df = self.img_cluster_result_df
+        train_df, test_df = train_test_split(results_cluster_df, train_size=0.7, shuffle=True, random_state=2023,
+                                    stratify=results_cluster_df[["cluster"]]
+                                    )
+        
+        ## create a zip file of train and test data
+
+         
+
+# def update_output(list_of_contents, list_of_names):
+#     if list_of_contents is not None:
+#         #contents_test = "valid.zip"
+#         folder_name = list_of_names[0].split(".")[0]
+#         with ZipFile(list_of_names[0], "r") as file:
+#                 extract_folder = "img_extract_folder"
+#                 file.extractall(extract_folder)
+                
+#         img_folder = os.path.join(extract_folder, folder_name)
+
+#%%
 # len(results['img'])
 
 # #%%
