@@ -1,6 +1,6 @@
 
 from dash import html, Output, Input, State, callback_context
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 import dash_trich_components as dt
 import dash
@@ -16,7 +16,48 @@ app = dash.Dash(__name__, suppress_callback_exceptions=True,
                 )
 
 
-app.layout = html.Div()
+def create_upload_button():
+    upload_button = dcc.Upload(
+            id='upload-data',
+            children=html.Div([
+                html.P('Select image zip file')
+            ]),
+            style={
+                'width': '100%',
+                'height': '50px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            # Allow multiple files to be uploaded
+            multiple=True
+        )
+    return upload_button
+
+main_page = html.Div([
+                    dbc.Row(children=[
+                                    dbc.Col(width="auto",
+                                            children=[html.Div("Sidebar content"),
+                                                      create_upload_button() #dcc.Upload()
+                                                    ],
+                                            style={"backgroundColor": '#5ebbcb',
+                                                   "height": "100em"
+                                                   }
+                                            ),
+                                    dbc.Col(children=[html.Div(id="main_page_content")
+                                                      ]
+                                            )
+                                ],
+                            style={"height": "100%"}
+                            ),
+    #dt.SideBar([dt.SideBarItem(dcc.Upload(html.Button('Upload Zip File of images')))]),
+    #html.Div(id="main_page_content")
+])
+
+app.layout = main_page  #html.Div("Image clustering app")
 
 
 if __name__ == "__main__":
