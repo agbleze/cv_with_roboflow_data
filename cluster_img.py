@@ -130,25 +130,57 @@ train_df['cluster'].value_counts()
 test_df['cluster'].value_counts()
 
 #%%
+from functools import lru_cache
+from typing import Union, List
+import abc
+
+class ImageFolder(abc.ABC):
+    def __init__(self):
+        pass
+    @abc.abstractmethod
+    def get_img_folder(self, *args, **kwargs):
+        pass
+
+class ImageFolderGetter(ImageFolder):
+    def __init__(self):
+        pass
+    def get_img_folder(self, list_of_contents: Union[List,None] = None,
+                   list_of_names: Union[List, None] = None,
+                   img_folder_path: Union[str, None] = None
+                   ):
+        if img_folder_path:
+            self.img_folder_path
+        else:
+            self.list_of_contents = list_of_contents
+            self.list_of_names = list_of_names
+            folder_name = list_of_names[0].split(".")[0]
+            self.zip_file = None
+            with ZipFile(list_of_names[0], "r") as file:
+                    extract_folder = "img_extract_folder"
+                    file.extractall(extract_folder)
+            self.img_folder_path = os.path.join(extract_folder, folder_name)
+    
 class ImageClusterCreator(object):
-    def __init__(self, list_of_contents, list_of_names) -> None:
-        self.list_of_contents = list_of_contents
-        self.list_of_names = list_of_names
-        folder_name = list_of_names[0].split(".")[0]
-        self.zip_file = None
-        with ZipFile(list_of_names[0], "r") as file:
-                extract_folder = "img_extract_folder"
-                file.extractall(extract_folder)
-        self.img_folder_path = os.path.join(extract_folder, folder_name)
-        
-    def extract_img_features(self, method="pca"): 
-        self.cl = Clustimage(method="pca")
-        self.cl.fit_transform(self.img_folder_path)
+    # def __init__(self, list_of_contents, list_of_names) -> None:
+    #     self.list_of_contents = list_of_contents
+    #     self.list_of_names = list_of_names
+    #     folder_name = list_of_names[0].split(".")[0]
+    #     self.zip_file = None
+    #     with ZipFile(list_of_names[0], "r") as file:
+    #             extract_folder = "img_extract_folder"
+    #             file.extractall(extract_folder)
+    #     self.img_folder_path = os.path.join(extract_folder, folder_name)
+    @lru_cache(maxsize=None)   
+    def extract_img_features(self, img_folder_path, method="pca", 
+                             
+                             ): 
+        self.cl = Clustimage(method=method)
+        self.cl.fit_transform(img_folder_path)
         
     def plot_clustered_imgs(self, zoom=1, fig_height=150, fig_width=100,
                             plt_all=True, **kwargs):
         self.cl.scatter(zoom=zoom, plt_all=plt_all, 
-                        figsize=(fig_height,fig_width)
+                        figsize=(fig_height,fig_width), **kwargs
                         )
     @property    
     def img_cluster_result_df(self):
@@ -164,6 +196,11 @@ class ImageClusterCreator(object):
         train_df, test_df = train_test_split(results_cluster_df, train_size=0.7, shuffle=True, random_state=2023,
                                     stratify=results_cluster_df[["cluster"]]
                                     )
+        return train_df, test_df
+        
+    def plot_unique_imgs_per_cluster(self):
+        fig_unique_img_per_cluster = self.cl.plot_unique(img_mean=False)
+        return fig_unique_img_per_cluster
         
         ## create a zip file of train and test data
 
