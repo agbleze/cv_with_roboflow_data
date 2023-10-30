@@ -121,6 +121,13 @@ def update_output(list_of_contents, list_of_names):
                    html.Img(src=pil_image)
                     ]
         return children
+    
+    
+@callback(Output(component_id="bar-graph-matplotlib", component_property="src"),
+          Input(component_id="id_cluster_img", component_property="n_clicks"),
+          Input('upload-image', 'contents'),
+            State('upload-image', 'filename')
+          )
 
 if __name__ == "__main__":
     app.run(port=8010, debug=True, use_reloader=True)
