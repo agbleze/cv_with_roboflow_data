@@ -78,7 +78,7 @@ main_page = html.Div([
                                     dbc.Col(width="auto",
                                             children=[html.Div("Sidebar content"),
                                                       create_upload_button(), #dcc.Upload()
-                                                      dbc.Button("Cluster image", id="id_cluster_img", size="md", color="dark"),
+                                                      dbc.Button("Cluster image", id="id_cluster_button", size="md", color="dark"),
                                                       html.Br(), html.Br(),
                                                       dbc.Button("Split Data", id="id_split_data", color="dark", size="md"),
                                                      # html.Button( ),
@@ -124,10 +124,15 @@ def update_output(list_of_contents, list_of_names):
     
     
 @callback(Output(component_id="bar-graph-matplotlib", component_property="src"),
-          Input(component_id="id_cluster_img", component_property="n_clicks"),
+          Input(component_id="id_cluster_button", component_property="n_clicks"),
           Input('upload-image', 'contents'),
             State('upload-image', 'filename')
           )
+def show_cluster_img(cluster_button_clicked, contents_uploaded, upload_filenames):
+    if cluster_button_clicked:
+        folder_name = upload_filenames[0].split(".")[0]
+        
+    
 
 if __name__ == "__main__":
     app.run(port=8010, debug=True, use_reloader=True)
