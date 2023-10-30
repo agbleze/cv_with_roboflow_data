@@ -179,9 +179,10 @@ class ImageClusterCreator(object):
         
     def plot_clustered_imgs(self, zoom=1, fig_height=150, fig_width=100,
                             plt_all=True, **kwargs):
-        self.cl.scatter(zoom=zoom, plt_all=plt_all, 
+        fig_clustered_imgs = self.cl.scatter(zoom=zoom, plt_all=plt_all, 
                         figsize=(fig_height,fig_width), **kwargs
                         )
+        return fig_clustered_imgs
     @property    
     def img_cluster_result_df(self):
         results = self.cl.results
