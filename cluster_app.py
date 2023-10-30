@@ -37,6 +37,29 @@ def create_upload_button():
         )
     return upload_button
 
+img_page = dbc.Row([
+                    dbc.Col([
+                        html.Img(id='bar-graph-matplotlib')
+                    ], width=12)
+                ])
+
+
+
+    # dbc.Row([
+    #     dbc.Col([
+    #         dcc.Graph(id='bar-graph-plotly', figure={})
+    #     ], width=12, md=6),
+    #     dbc.Col([
+    #         dag.AgGrid(
+    #             id='grid',
+    #             rowData=df.to_dict("records"),
+    #             columnDefs=[{"field": i} for i in df.columns],
+    #             columnSize="sizeToFit",
+    #         )
+    #     ], width=12, md=6),
+    # ], className='mt-4')
+
+
 main_page = html.Div([
                     dbc.Row(children=[
                                     dbc.Col(width="auto",
@@ -51,7 +74,7 @@ main_page = html.Div([
                                                    "height": "100em"
                                                    }
                                             ),
-                                    dbc.Col(children=[html.Div(id="main_page_content")
+                                    dbc.Col(children=[img_page#html.Div(id="main_page_content")
                                                       ]
                                             )
                                 ],
