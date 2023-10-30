@@ -41,7 +41,11 @@ main_page = html.Div([
                     dbc.Row(children=[
                                     dbc.Col(width="auto",
                                             children=[html.Div("Sidebar content"),
-                                                      create_upload_button() #dcc.Upload()
+                                                      create_upload_button(), #dcc.Upload()
+                                                      dbc.Button("Cluster image", id="id_cluster_img", size="md", color="dark"),
+                                                      html.Br(), html.Br(),
+                                                      dbc.Button("Split Data", id="id_split_data", color="dark", size="md"),
+                                                     # html.Button( ),
                                                     ],
                                             style={"backgroundColor": '#5ebbcb',
                                                    "height": "100em"
