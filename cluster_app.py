@@ -1,11 +1,21 @@
 
-from dash import html, Output, Input, State, callback_context
 from dash import dcc
 import dash_bootstrap_components as dbc
 import dash_trich_components as dt
 import dash
-
-
+from clustimage import Clustimage
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from functools import lru_cache
+from typing import Union, List, NamedTuple
+import abc
+import cv2
+from zipfile import ZipFile
+from glob import glob
+from dash import Dash, dcc, html, Input, Output, State, callback, callback_context
+import os
+import datetime
+from PIL import Image
 
 
 
@@ -18,7 +28,7 @@ app = dash.Dash(__name__, suppress_callback_exceptions=True,
 
 def create_upload_button():
     upload_button = dcc.Upload(
-            id='upload-data',
+            id='upload-image',
             children=html.Div([
                 html.P('Select image zip file')
             ]),
@@ -38,9 +48,12 @@ def create_upload_button():
     return upload_button
 
 img_page = dbc.Row([
-                    dbc.Col([
-                        html.Img(id='bar-graph-matplotlib')
-                    ], width=12)
+                    dbc.Col([html.Div(id='output-image-upload'),
+                             html.Br(),
+                             html.Img(id='bar-graph-matplotlib')
+                            ], 
+                            width=12
+                            )
                 ])
 
 
@@ -86,6 +99,28 @@ main_page = html.Div([
 
 app.layout = main_page  #html.Div("Image clustering app")
 
+@callback(Output('output-image-upload', 'children'),
+              Input('upload-image', 'contents'),
+              State('upload-image', 'filename'),
+             # State('upload-image', 'last_modified')
+              )
+def update_output(list_of_contents, list_of_names):
+    if list_of_contents is not None:
+        #contents_test = "valid.zip"
+        folder_name = list_of_names[0].split(".")[0]
+        with ZipFile(list_of_names[0], "r") as file:
+                extract_folder = "extract_folder"
+                file.extractall(extract_folder)
+                
+        img_folder = os.path.join(extract_folder, folder_name)
+                
+        img = glob(f"{img_folder}/*.jpg")[0]
+        pil_image = Image.open(img)
+        children = [html.H5(list_of_names[0]),
+                    html.Br(),
+                   html.Img(src=pil_image)
+                    ]
+        return children
 
 if __name__ == "__main__":
     app.run(port=8010, debug=True, use_reloader=True)
