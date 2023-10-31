@@ -9,7 +9,25 @@ import abc
 import cv2
 from zipfile import ZipFile
 from glob import glob
+import shutil
+from sklearn.manifold import TSNE
 
+#%%
+import plotly.express as px
+
+df = px.data.iris()
+
+features = df.loc[:, :'petal_width']
+
+tsne = TSNE(n_components=3, random_state=0)
+projections = tsne.fit_transform(features, )
+
+fig = px.scatter_3d(
+    projections, x=0, y=1, z=2,
+    color=df.species, labels={'color': 'species'}
+)
+fig.update_traces(marker_size=8)
+fig.show()
 
 # %%
 
@@ -19,15 +37,13 @@ cl = Clustimage(method="pca")
 train_img = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train"
 valid_dir = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/valid"
 
+subset_valid_dir = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subset_extract_folder/valid_subset"
 #%%
-valid_imgs_list = glob(f"{valid_dir}/*.jpg")[:20]
+#valid_imgs_list = glob(f"{valid_dir}/*.jpg")[:20]
 
-train_imgs_list = glob(f"{train_img}/*.jpg")
+#train_imgs_list = glob(f"{train_img}/*.jpg")
 
 
-#%%
-
-import shutil
 
 #%%
 #for img_path in valid_imgs_list:
@@ -38,12 +54,99 @@ import shutil
 
 
 #%%
-len(valid_imgs_list)
+#len(valid_imgs_list)
 
 #%%
 
-valid_transformed = cl.fit_transform(valid_imgs_list)
+valid_transformed = cl.fit_transform(subset_valid_dir)
 
+valid_result_feat = valid_transformed['feat']
+
+#%%
+tsne_mod = TSNE(n_components=3, random_state=2023)
+
+#%%
+
+tsne_3feat = tsne_mod.fit_transform(valid_result_feat)
+
+#%%
+valid_transformed['xyzcoord'] = tsne_3feat
+xyzcoord_df = pd.DataFrame(valid_transformed['xyzcoord'])
+
+#%%
+xyzcoord_df.rename(columns={0: "feat_0", 1: "feat_1", 2: "feat_2"})
+#%%
+valid_transformed.keys()
+#%%
+results_selected = {key: value for key, value in valid_transformed.items() if key not in ['img', 'feat', 'xycoord']}
+results_selected
+
+
+#%%
+
+results_cluster_df = pd.DataFrame.from_dict(results_selected).rename(columns={'labels': 'cluster'})
+results_cluster_df
+
+
+#%%
+fig = px.scatter_3d(
+    projections, x=0, y=1, z=2,
+    color=df.species, labels={'color': 'species'}
+)
+fig.update_traces(marker_size=8)
+fig.show()
+
+
+
+#%%
+pd.concat([results_cluster_df, xyzcoord_df])
+#%%
+pd.DataFrame(valid_transformed)
+
+
+
+#%%
+subset_valid_raw = cl.import_data(subset_valid_dir)
+
+#%%
+subset_valid_extracted_feat = cl.extract_feat(subset_valid_raw)
+
+
+#%%
+tsne_mod = TSNE(n_components=3, random_state=2023)
+
+#%%
+
+tsne_3feat = tsne_mod.fit_transform(subset_valid_extracted_feat)
+
+#%%
+
+
+#%%
+subset_valid_embed = cl.embedding(subset_valid_extracted_feat)
+
+#%%
+cl.cluster()
+
+#%%
+results = cl.results
+#%%
+
+pd.DataFrame(subset_valid_embed)
+
+#%%
+pd.DataFrame(results['feat'])
+
+
+#TODO:
+# Imherit the ClusterImage class
+# write function to do tsne with 3_components using feat of results produced from fit_transform method of ClustImage
+# writes results fo tsne(n_componets=3) to results var of ClusterImage as xyzcoord
+
+
+
+#%%
+valid_transformed
 # %%
 #cl.scatter(zoom=None)
 
