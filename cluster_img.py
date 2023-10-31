@@ -38,8 +38,6 @@ import shutil
 
 
 #%%
-
-
 len(valid_imgs_list)
 
 #%%
