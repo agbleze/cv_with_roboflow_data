@@ -42,6 +42,7 @@ def coco_annotation_to_df(coco_annotation_file):
                                   "width": "image_width"}, 
                          inplace=True
                          )
+    all_merged_df.dropna(subset=["file_name"], inplace=True)
     return all_merged_df
     
 
@@ -54,6 +55,19 @@ annot_df = coco_annotation_to_df(coco_annotation_file=valid_annot_file)
 annot_df['file_name'].values
 
 #%%
+img_name = 'aphids-crop_jpg.rf.fdc584f5ace70e449ec59232d08e17ed.jpg'
+
+test_img_item_df = annot_df[annot_df['file_name']==img_name]
+test_img_item_bbox = test_img_item_df['bbox']
+a, b, c,d = test_img_item_bbox.to_list()[0]
+#a, b, c,d = test_img_item_bbox#.values
+
+#%%
+annot_df['bbox'].values
+#%%
+annot_df.dropna(subset=["file_name"])
+
+#%%
 def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
                          all_images: bool = True,
                          image_name: Union[str, None] = None, 
@@ -64,12 +78,12 @@ def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
             img_df = annotation_record_df[annotation_record_df["file_name"]==img]
             for img_item in img_df['file_name'].values:
                 img_item_df = img_df[img_df['file_name']==img_item]
-                img_item_bbox = img_item_df['bbox']#.values
+                img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
                 x, y, w, h = img_item_bbox
                 img_path = os.path.join(images_root_path, img_item)   
                 img = Image.open(img_path)
                 cropped_img = img.crop((x,y,x+w, y+h))
-                ann_id = img_item_df['id_annotation'].values
+                ann_id = img_item_df['id_annotation'].to_list()[0]
                 img_saved_name = f"{ann_id}_resized_{img_item}"
                 cropped_img.save(img_saved_name)
                 print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
