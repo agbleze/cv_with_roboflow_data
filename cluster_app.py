@@ -88,9 +88,11 @@ def create_upload_button():
 
 img_page = dbc.Row([
                     dbc.Col([html.H5(id="detect-click"),
+                             dcc.Graph(id="id_cluster_img_graph"),
+                             dcc.Tooltip(id="id_tooltip"),
                             html.Div(id='output-image-upload'),
                              html.Br(),
-                             html.Img(id='bar-graph-matplotlib')
+                             #html.Img(id='bar-graph-matplotlib')
                             ], 
                             width=12
                             )
