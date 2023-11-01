@@ -83,10 +83,54 @@ all_merged_df = annotations_imgs_cat_merge[['id_annotation', 'image_id','categor
 all_merged_df
 
 #%%
-all_merged_df.to_json()
+all_merge_json = all_merged_df.to_json()
+
+all_merge_json
+
 
 #%%
+
+all_merge_json
+
+#%%
+
+all_merged_df.to_dict() #.to_records().item()
+#%%
 annotations_df['category_id'].nunique()
+
+
+#%%
+
+def coco_annotation_to_df(coco_annotation_file):
+    with open(coco_annotation_file, "r") as annot_file:
+        annotation = json.load(annot_file)
+    annotations_df = json_normalize(annotation, "annotations")
+    annot_imgs_df = json_normalize(annotation, "images")
+    annot_cat_df = json_normalize(annotation, "categories")
+    annotations_images_merge_df = annotations_df.merge(annot_imgs_df, left_on='image_id', 
+                                                        right_on='id',
+                                                        suffixes=("_annotation", "_image"),
+                                                        how="outer"
+                                                        )
+    annotations_imgs_cat_merge = annotations_images_merge_df.merge(annot_cat_df, left_on="category_id", right_on="id",
+                                                                    suffixes=(None, '_categories'),
+                                                                    how="outer"
+                                                                    )
+    all_merged_df = annotations_imgs_cat_merge[['id_annotation', 'image_id','category_id', 'bbox', 'area', 'segmentation', 'iscrowd',
+                                'file_name', 'height', 'width', 'name', 'supercategory'
+                                ]]
+    all_merged_df.rename(columns={"name": "category_name",
+                                  "height": "image_height",
+                                  "width": "image_width"}, 
+                         inplace=True
+                         )
+    return all_merged_df
+    
+
+#%%
+
+
+coco_annotation_to_df(coco_annotation_file=valid_annot_file)
 
 
 
