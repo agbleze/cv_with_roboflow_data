@@ -90,11 +90,12 @@ results_cluster_df
 
 #%%
 fig = px.scatter_3d(
-    projections, x=0, y=1, z=2,
-    color=df.species, labels={'color': 'species'}
+    valid_transformed['xyzcoord'], x=0, y=1, z=2,
+    color=valid_transformed['labels'], labels={'color': 'cluster'}
 )
 fig.update_traces(marker_size=8)
 fig.show()
+
 
 
 
