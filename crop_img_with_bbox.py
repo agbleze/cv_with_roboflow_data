@@ -110,7 +110,7 @@ from glob import glob
 subset_img_path = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subset_extract_folder/valid_subset"
 
 img_name_list = []
-for img_path in glob(f"{subset_img_path}/*.jpg"):
+for img_path in sorted(glob(f"{subset_img_path}/*.jpg")):
     img_name_list.append(img_path.split("/")[-1])
 
 
