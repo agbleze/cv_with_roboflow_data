@@ -54,6 +54,10 @@ annot_df = coco_annotation_to_df(coco_annotation_file=valid_annot_file)
 #%%
 annot_df['file_name'].values
 
+
+#%%
+
+annot_df
 #%%
 img_name = 'aphids-crop_jpg.rf.fdc584f5ace70e449ec59232d08e17ed.jpg'
 
@@ -97,8 +101,47 @@ crop_image_with_bbox(coco_annotation_file_path=valid_annot_file,
                      )    
     
 
+
+
+#%% func to get object forimgs in a folder
+
+from glob import glob
+
+subset_img_path = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subset_extract_folder/valid_subset"
+
+img_name_list = []
+for img_path in glob(f"{subset_img_path}/*.jpg"):
+    img_name_list.append(img_path.split("/")[-1])
+
+
+
 #%%
 
+subset_annot_df = annot_df[annot_df['file_name'].isin(img_name_list)]
+
+#%%
+import pandas as pd
+img_name_eg = "101Apple_Mosaic_jpg.rf.89074173e29639bf88ce6510ede55b3f.jpg"
+
+subset_wider_df = pd.pivot(subset_annot_df, index="file_name", columns="id_annotation", values="category_name" ).reset_index()#.columns
+
+
+#%%
+img_labels = subset_wider_df[subset_wider_df['file_name'] == img_name_eg].dropna(axis=1).to_numpy()[0][1:-1]
+
+img_labels
+
+#%%
+
+
+with open("example.tsv", "w") as eg_file:
+    [eg_file.write(f"{i}    ") for i in img_labels]
+
+
+
+#%%
+
+subset_annot_df.columns
 
 # %%
 annotation.keys()
