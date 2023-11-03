@@ -4,18 +4,20 @@ from PIL import Image
 import json
 from typing import Callable, Union
 import os
+import pandas as pd
+from pandas import json_normalize
 
 #%%
 
 valid_annot_file = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/valid/_annotations.coco.json"
-with open(valid_annot_file, "r") as annot_file:
-    annotation = json.load(annot_file)
+# with open(valid_annot_file, "r") as annot_file:
+#     annotation = json.load(annot_file)
     
-    for ann in annotation['annotations']:
-        img = Image.open(ann['file_name'])
-        x, y, w, h = ann['bbox']
-        cropped_img = img.crop((x,y,x+w, y+h))
-        cropped_img.save(f"{ann['id']}.jpg")
+#     for ann in annotation['annotations']:
+#         img = Image.open(ann['file_name'])
+#         x, y, w, h = ann['bbox']
+#         cropped_img = img.crop((x,y,x+w, y+h))
+#         cropped_img.save(f"{ann['id']}.jpg")
 
 
 #%%
@@ -73,6 +75,7 @@ annot_df.dropna(subset=["file_name"])
 
 #%%
 def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
+                         output_dir: str,
                          all_images: bool = True,
                          image_name: Union[str, None] = None, 
                          ):
@@ -89,15 +92,16 @@ def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
                 cropped_img = img.crop((x,y,x+w, y+h))
                 ann_id = img_item_df['id_annotation'].to_list()[0]
                 img_saved_name = f"{ann_id}_resized_{img_item}"
+                img_ouput_path = os.path.join(output_dir, img_save_name)
                 cropped_img.save(img_saved_name)
-                print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
+                #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
             
 
 #%%
 img_root = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/valid"
     
 crop_image_with_bbox(coco_annotation_file_path=valid_annot_file, 
-                     images_root_path=img_root
+                     images_root_path=img_root, output_dir="cropped_imgs"
                      )    
     
 
@@ -120,6 +124,22 @@ for img_path in sorted(glob(f"{subset_img_path}/*.jpg")):
 subset_annot_df = annot_df[annot_df['file_name'].isin(img_name_list)]
 
 #%%
+
+subset_annot_df.dropna(subset=['category_name', "id_annotation"], inplace=True)
+
+#%%
+#subset_annot_df.file_name.values
+
+subset_img_name_list = []
+for file_name in img_name_list:
+    if file_name in subset_annot_df.file_name.values:
+        subset_img_name_list.append(file_name)
+
+
+#%%
+len(subset_img_name_list)
+        
+#%%
 import pandas as pd
 img_name_eg = "101Apple_Mosaic_jpg.rf.89074173e29639bf88ce6510ede55b3f.jpg"
 
@@ -127,9 +147,26 @@ subset_wider_df = pd.pivot(subset_annot_df, index="file_name", columns="id_annot
 
 
 #%%
-img_labels = subset_wider_df[subset_wider_df['file_name'] == img_name_eg].dropna(axis=1).to_numpy()[0][1:-1]
+img_labels = subset_wider_df[subset_wider_df['file_name'] == img_name_eg].dropna(axis=1).to_numpy()[0][1:-1].tolist()#[0]
 
 img_labels
+
+#%%
+
+img_labels_list = []
+img_with_labels_name_list = []
+
+for img in subset_img_name_list:
+    img_lab = subset_wider_df[subset_wider_df['file_name'] == img].dropna(axis=1).to_numpy()[0][1:-1].tolist()
+    if len(img_lab) != 0:
+        img_with_labels_name_list.append(img)
+        img_labels_list.append(img_lab)
+
+#%%
+len(img_labels_list)
+
+#%%
+len(img_with_labels_name_list)
 
 #%%
 
