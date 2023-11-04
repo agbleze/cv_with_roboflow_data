@@ -7,6 +7,7 @@ import pandas as pd
 from pandas import json_normalize
 from typing import NamedTuple, List, Union,Callable, Optional, Dict
 from dataclasses import dataclass
+from glob import glob
 
 
 
@@ -45,16 +46,15 @@ def coco_annotation_to_df(coco_annotation_file):
     return all_merged_df
     
 
-
-
 def crop_image_with_bbox(images_root_path: str,
                          output_dir: str,
                          all_images: bool = True, 
                          coco_annotation_file_path: Optional[str] = None,
                          image_names: Union[str, List, None] = None, 
                          use_annotation_record_df: bool = False,
-                         annotation_record_df: Union[pd.DataFrame, None] = None
-                         )->Dict:
+                         annotation_record_df: Union[pd.DataFrame, None] = None,
+                         result_store_type: Union[ImgPropertySetReturnType, None] = ImgPropertySetReturnType 
+                         )->Union[ImgPropertySetReturnType, Dict]:
     os.makedirs(output_dir, exist_ok=True)
     if use_annotation_record_df and (not annotation_record_df or not isinstance(annotation_record_df, pd.DataFrame)):
         raise Error("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
@@ -95,6 +95,7 @@ def crop_image_with_bbox(images_root_path: str,
      
     cropped_img_path_list = [] 
     cropped_img_name_list = [] 
+    cropped_img_labels_list = [] 
     for img in list_of_image_names:
         img_df = annotation_record_df[annotation_record_df["file_name"]==img]
         for img_item in img_df['file_name'].values:
@@ -109,12 +110,29 @@ def crop_image_with_bbox(images_root_path: str,
             img_ouput_path = os.path.join(output_dir, img_saved_name)
             cropped_img.save(img_ouput_path)
             
+            ## cropped img labels
+            img_item_label = img_item_df['category_name'].values#[img_item_df['id_annotation']==ann_id]
+            if len(img_item_label) == 0:
+                label = "None"
+                cropped_img_labels_list.append([label])
+            else:
+                cropped_img_labels_list.append(img_item_label)    
+            
+            
             cropped_img_name_list.append(img_saved_name)
             cropped_img_path_list.append(img_ouput_path)
             
-    return {"cropped_img_names": list_of_image_name_list, 
-            "cropped_img_paths": cropped_img_path_list
-            }
+    if isinstance(result_store_type, ImgPropertySetReturnType):
+        result_store_type.cropped_img_names = cropped_img_name_list
+        result_store_type.cropped_img_paths = cropped_img_path_list
+        result_store_type.cropped_img_labels = cropped_img_labels_list
+            
+    else:
+        result_store_type = {"cropped_img_names": list_of_image_name_list, 
+                            "cropped_img_paths": cropped_img_path_list,
+                            "cropped_img_labels": cropped_img_labels_list
+                            }
+    return result_store_type
 
             
         
@@ -139,7 +157,7 @@ def get_img_names_labels_paths(img_dir: str, annot_records_df: pd.DataFrame,
         annot_records_df (_type_): _description_
 
     Returns:
-        _type_: Returns image name and label in pairs 
+        ImgPropertySetReturnType: Returns image name and label in pairs 
     """
     annot_record_wideformat_df = pd.pivot(annot_records_df, index="file_name", 
                                columns="id_annotation", 
@@ -156,12 +174,12 @@ def get_img_names_labels_paths(img_dir: str, annot_records_df: pd.DataFrame,
         if len(img_label) == 0:
             img_label = "None"
             #img_name_list.append(img)
-            img_labels_list.append(img_label)
+            img_label_list.append([img_label])
         else:
             #img_name_list.append(img)
-            img_labels_list.append(img_label)
+            img_label_list.append(img_label)
     return ImgPropertySetReturnType(img_names=img_name_list, 
-                                    img_labels=img_labels_list,
+                                    img_labels=img_label_list,
                                     img_paths=img_paths_list
                                     ) 
 
