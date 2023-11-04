@@ -79,6 +79,7 @@ def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
                          all_images: bool = True,
                          image_name: Union[str, None] = None, 
                          ):
+    os.makedirs(output_dir, exist_ok=True)
     annotation_record_df = coco_annotation_to_df(coco_annotation_file=coco_annotation_file_path)
     if all_images:
         for img in annotation_record_df['file_name'].values:
