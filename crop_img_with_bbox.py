@@ -92,8 +92,8 @@ def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
                 cropped_img = img.crop((x,y,x+w, y+h))
                 ann_id = img_item_df['id_annotation'].to_list()[0]
                 img_saved_name = f"{ann_id}_resized_{img_item}"
-                img_ouput_path = os.path.join(output_dir, img_save_name)
-                cropped_img.save(img_saved_name)
+                img_ouput_path = os.path.join(output_dir, img_saved_name)
+                cropped_img.save(img_ouput_path)
                 #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
             
 
@@ -162,6 +162,46 @@ for img in subset_img_name_list:
         img_with_labels_name_list.append(img)
         img_labels_list.append(img_lab)
 
+
+
+
+def get_img_names_labels(img_dir, annot_records_df, img_ext: str = ".jpg"):
+    """_summary_
+
+    Args:
+        img_dir (_type_): _description_
+        img_ext (_type_): _description_
+        annot_records_df (_type_): _description_
+
+    Returns:
+        _type_: Returns image name and label in pairs 
+    """
+    annot_record_wideformat_df = pd.pivot(annot_records_df, index="file_name", 
+                               columns="id_annotation", 
+                               values="category_name" ).reset_index()#.columns
+
+    img_name_list = []
+    img_label_list = []
+    for img_path in sorted(glob(f"{img_dir}/*{img_ext}")):
+        img_name_list.append(img_path.split("/")[-1])
+        
+    for img in img_name_list:
+        img_label = annot_record_wideformat_df[annot_record_wideformat_df['file_name'] == img].dropna(axis=1).to_numpy()[0][1:-1].tolist()
+        if len(img_label) == 0:
+            img_label = "None"
+            #img_name_list.append(img)
+            img_labels_list.append(img_label)
+        else:
+            #img_name_list.append(img)
+            img_labels_list.append(img_label)
+            
+    return zip(img_name_list, img_labels_list)
+    
+    
+    
+    
+    
+    
 #%%
 len(img_labels_list)
 
