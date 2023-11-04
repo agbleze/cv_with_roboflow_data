@@ -47,13 +47,35 @@ def coco_annotation_to_df(coco_annotation_file):
 
 
 
-def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
+def crop_image_with_bbox(images_root_path: str,
                          output_dir: str,
-                         all_images: bool = True,
-                         image_name: Union[str, None] = None, 
+                         all_images: bool = True, coco_annotation_file_path: Optional[str] = None,
+                         image_names: Union[str, List, None] = None, 
+                         use_annotation_record_df: bool = False,
+                         annotation_record_df: Union[pd.DataFrame, None] = None
                          ):
     os.makedirs(output_dir, exist_ok=True)
-    annotation_record_df = coco_annotation_to_df(coco_annotation_file=coco_annotation_file_path)
+    if use_annotation_record_df and (not annotation_record_df or not isinstance(annotation_record_df, pd.DataFrame)):
+        print("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
+              Please provide a dataframe for annotation_record_df with a column name as file_name for 
+              image names OR set use_annotation_record_df to False and provide a coco annotation file path
+              for coco_annotation_file_path
+              """
+              )
+    elif use_annotation_record_df:
+        annotation_record_df = annotation_record_df
+    
+    else:
+        try:
+            annotation_record_df = coco_annotation_to_df(coco_annotation_file=coco_annotation_file_path)
+        except Exception as e:
+            raise("""coco_annotation_file_path not found. Provide the correct path or 
+                  set use_annotation_record_df to True and provide provide a dataframe 
+                  for annotation_record_df with a column name as file_name for image names
+                """
+                )
+            
+
     if all_images:
         for img in annotation_record_df['file_name'].values:
             img_df = annotation_record_df[annotation_record_df["file_name"]==img]
@@ -68,6 +90,9 @@ def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
                 img_saved_name = f"{ann_id}_resized_{img_item}"
                 img_ouput_path = os.path.join(output_dir, img_saved_name)
                 cropped_img.save(img_ouput_path)
+    else:
+        if 
+        
                 #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
 
 
