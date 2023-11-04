@@ -6,6 +6,8 @@ from typing import Callable, Union
 import os
 import pandas as pd
 from pandas import json_normalize
+from typing import NamedTuple, List, Union,Callable, Optional
+from dataclasses import dataclass
 
 #%%
 
@@ -65,8 +67,6 @@ img_name = 'aphids-crop_jpg.rf.fdc584f5ace70e449ec59232d08e17ed.jpg'
 
 test_img_item_df = annot_df[annot_df['file_name']==img_name]
 test_img_item_bbox = test_img_item_df['bbox']
-a, b, c,d = test_img_item_bbox.to_list()[0]
-#a, b, c,d = test_img_item_bbox#.values
 
 #%%
 annot_df['bbox'].values
@@ -164,8 +164,15 @@ for img in subset_img_name_list:
 
 
 
+@dataclass
+class ImgNamesLabelsPathsReturn:
+    img_names: List
+    img_labels: List
+    img_paths: List
 
-def get_img_names_labels(img_dir, annot_records_df, img_ext: str = ".jpg"):
+#%%
+def get_img_names_labels_paths(img_dir, annot_records_df, img_ext: str = ".jpg"):
+
     """_summary_
 
     Args:
@@ -182,7 +189,8 @@ def get_img_names_labels(img_dir, annot_records_df, img_ext: str = ".jpg"):
 
     img_name_list = []
     img_label_list = []
-    for img_path in sorted(glob(f"{img_dir}/*{img_ext}")):
+    img_paths_list = sorted(glob(f"{img_dir}/*{img_ext}"))
+    for img_path in img_paths_list:
         img_name_list.append(img_path.split("/")[-1])
         
     for img in img_name_list:
@@ -194,11 +202,24 @@ def get_img_names_labels(img_dir, annot_records_df, img_ext: str = ".jpg"):
         else:
             #img_name_list.append(img)
             img_labels_list.append(img_label)
-            
-    return zip(img_name_list, img_labels_list)
+    return ImgNamesLabelsPathsReturn(img_names=img_name_list, 
+                                    img_labels=img_labels_list,
+                                    img_paths=img_paths_list
+                                    ) 
+
     
     
-    
+#%%
+
+img_names_labels_paths = get_img_names_labels_paths(img_dir=subset_img_path, annot_records_df=annot_df,
+                        ) 
+
+
+#%%
+for nm, lab, path in zip(img_names_labels_paths.img_names,
+    img_names_labels_paths.img_labels,
+    img_names_labels_paths.img_paths):
+    print(nm, lab, path)   
     
     
     
@@ -214,50 +235,6 @@ len(img_with_labels_name_list)
 with open("example.tsv", "w") as eg_file:
     [eg_file.write(f"{i}    ") for i in img_labels]
 
-
-
-#%%
-
-subset_annot_df.columns
-
-# %%
-annotation.keys()
-# %%
-annotation['annotations'][0]
-
-
-#%%
-annotation['images'][10]
-
-#%%
-annotation['categories']
-
-
-# %%
-from pandas import json_normalize
-
-#%%
-annotations_df = json_normalize(annotation, "annotations")#.head()
-
-#%%
-annot_imgs_df = json_normalize(annotation, "images")#.head()
-
-#%%
-annot_cat_df = json_normalize(annotation, "categories")#.head()
-
-#%%
-annot_cat_df.head()
-
-#%%
-annotations_df['image_id'].nunique()
-
-#%%
-annot_imgs_df['id'].nunique()
-
-#%%
-#annot_imgs_df['image_id'] = annot_imgs_df['id']
-
-annot_imgs_df
 
 #%%
 
@@ -306,36 +283,3 @@ annotations_df['category_id'].nunique()
 #%%
 
 
-
-
-
-
-# %%
-data = [{
-        "state": "Florida",
-         "shortname": "FL",
-         "info": {"governor": "Rick Scott"},
-         "counties": [
-             {"name": "Dade", "population": 12345},
-             {"name": "Broward", "population": 40000},
-             {"name": "Palm Beach", "population": 60000},
-         ],
-     },
-     {
-         "state": "Ohio",
-         "shortname": "OH",
-         "info": {"governor": "John Kasich"},
-         "counties": [
-             {"name": "Summit", "population": 1234},
-             {"name": "Cuyahoga", "population": 1337},
-         ],
-     },
- ]
-
-#%%
-result = json_normalize(data, "counties", ["state", "shortname", ["info", "governor"]]
-)
-
-
-
-# %%
