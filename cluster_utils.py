@@ -10,28 +10,11 @@ from dataclasses import dataclass
 
 
 
-
-def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
-                         output_dir: str,
-                         all_images: bool = True,
-                         image_name: Union[str, None] = None, 
-                         ):
-    annotation_record_df = coco_annotation_to_df(coco_annotation_file=coco_annotation_file_path)
-    if all_images:
-        for img in annotation_record_df['file_name'].values:
-            img_df = annotation_record_df[annotation_record_df["file_name"]==img]
-            for img_item in img_df['file_name'].values:
-                img_item_df = img_df[img_df['file_name']==img_item]
-                img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
-                x, y, w, h = img_item_bbox
-                img_path = os.path.join(images_root_path, img_item)   
-                img = Image.open(img_path)
-                cropped_img = img.crop((x,y,x+w, y+h))
-                ann_id = img_item_df['id_annotation'].to_list()[0]
-                img_saved_name = f"{ann_id}_resized_{img_item}"
-                img_ouput_path = os.path.join(output_dir, img_saved_name)
-                cropped_img.save(img_ouput_path)
-                #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
+@dataclass
+class ImgPropertySetReturnType:
+    img_names: List
+    img_labels: List
+    img_paths: List
 
 
 
@@ -63,15 +46,39 @@ def coco_annotation_to_df(coco_annotation_file):
     
 
 
-@dataclass
-class ImgPropertySetReturnType:
-    img_names: List
-    img_labels: List
-    img_paths: List
+
+def crop_image_with_bbox(coco_annotation_file_path: str, images_root_path: str,
+                         output_dir: str,
+                         all_images: bool = True,
+                         image_name: Union[str, None] = None, 
+                         ):
+    os.makedirs(output_dir, exist_ok=True)
+    annotation_record_df = coco_annotation_to_df(coco_annotation_file=coco_annotation_file_path)
+    if all_images:
+        for img in annotation_record_df['file_name'].values:
+            img_df = annotation_record_df[annotation_record_df["file_name"]==img]
+            for img_item in img_df['file_name'].values:
+                img_item_df = img_df[img_df['file_name']==img_item]
+                img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
+                x, y, w, h = img_item_bbox
+                img_path = os.path.join(images_root_path, img_item)   
+                img = Image.open(img_path)
+                cropped_img = img.crop((x,y,x+w, y+h))
+                ann_id = img_item_df['id_annotation'].to_list()[0]
+                img_saved_name = f"{ann_id}_resized_{img_item}"
+                img_ouput_path = os.path.join(output_dir, img_saved_name)
+                cropped_img.save(img_ouput_path)
+                #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
 
 
 
-def get_img_names_labels_paths(img_dir, annot_records_df, img_ext: str = ".jpg"):
+
+
+
+
+def get_img_names_labels_paths(img_dir: str, annot_records_df: pd.DataFrame, 
+                               img_ext: str = ".jpg"
+                               ):
 
     """_summary_
 
