@@ -5,7 +5,7 @@ from typing import Callable, Union
 import os
 import pandas as pd
 from pandas import json_normalize
-from typing import NamedTuple, List, Union,Callable, Optional
+from typing import NamedTuple, List, Union,Callable, Optional, Dict
 from dataclasses import dataclass
 
 
@@ -53,15 +53,15 @@ def crop_image_with_bbox(images_root_path: str,
                          image_names: Union[str, List, None] = None, 
                          use_annotation_record_df: bool = False,
                          annotation_record_df: Union[pd.DataFrame, None] = None
-                         ):
+                         )->Dict:
     os.makedirs(output_dir, exist_ok=True)
     if use_annotation_record_df and (not annotation_record_df or not isinstance(annotation_record_df, pd.DataFrame)):
-        print("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
-              Please provide a dataframe for annotation_record_df with a column name as file_name for 
-              image names OR set use_annotation_record_df to False and provide a coco annotation file path
-              for coco_annotation_file_path
-              """
-              )
+        raise Error("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
+                        Please provide a dataframe for annotation_record_df with a column name as file_name for 
+                        image names OR set use_annotation_record_df to False and provide a coco annotation file path
+                        for coco_annotation_file_path
+                    """
+                    )
     elif use_annotation_record_df:
         annotation_record_df = annotation_record_df
     
@@ -74,24 +74,40 @@ def crop_image_with_bbox(images_root_path: str,
                   for annotation_record_df with a column name as file_name for image names
                 """
                 )
-            
+     
+    if "file_name" not in annotation_record_df.columns:
+            raise Error("""The is no file_name key in coco annotation file or no such column name
+                        in the 
+                        annotation_record_df provided. This is required"""
+                        )       
 
     if all_images:
-        for img in annotation_record_df['file_name'].values:
-            img_df = annotation_record_df[annotation_record_df["file_name"]==img]
-            for img_item in img_df['file_name'].values:
-                img_item_df = img_df[img_df['file_name']==img_item]
-                img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
-                x, y, w, h = img_item_bbox
-                img_path = os.path.join(images_root_path, img_item)   
-                img = Image.open(img_path)
-                cropped_img = img.crop((x,y,x+w, y+h))
-                ann_id = img_item_df['id_annotation'].to_list()[0]
-                img_saved_name = f"{ann_id}_resized_{img_item}"
-                img_ouput_path = os.path.join(output_dir, img_saved_name)
-                cropped_img.save(img_ouput_path)
+        list_of_image_names = annotation_record_df['file_name'].values
     else:
-        if 
+        if isinstance(image_names, str):
+            image_names = [image_names]
+        
+        else:
+            if not isinstance(image_names, List):
+                raise Error("Image names must be provided as a list if all_images is set to False")
+        list_of_image_names = image_names    
+        
+    for img in list_of_image_names:
+        img_df = annotation_record_df[annotation_record_df["file_name"]==img]
+        for img_item in img_df['file_name'].values:
+            img_item_df = img_df[img_df['file_name']==img_item]
+            img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
+            x, y, w, h = img_item_bbox
+            img_path = os.path.join(images_root_path, img_item)   
+            img = Image.open(img_path)
+            cropped_img = img.crop((x,y,x+w, y+h))
+            ann_id = img_item_df['id_annotation'].to_list()[0]
+            img_saved_name = f"{ann_id}_resized_{img_item}"
+            img_ouput_path = os.path.join(output_dir, img_saved_name)
+            cropped_img.save(img_ouput_path)
+
+            
+        
         
                 #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
 
