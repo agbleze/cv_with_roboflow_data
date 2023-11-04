@@ -49,7 +49,8 @@ def coco_annotation_to_df(coco_annotation_file):
 
 def crop_image_with_bbox(images_root_path: str,
                          output_dir: str,
-                         all_images: bool = True, coco_annotation_file_path: Optional[str] = None,
+                         all_images: bool = True, 
+                         coco_annotation_file_path: Optional[str] = None,
                          image_names: Union[str, List, None] = None, 
                          use_annotation_record_df: bool = False,
                          annotation_record_df: Union[pd.DataFrame, None] = None
@@ -91,7 +92,9 @@ def crop_image_with_bbox(images_root_path: str,
             if not isinstance(image_names, List):
                 raise Error("Image names must be provided as a list if all_images is set to False")
         list_of_image_names = image_names    
-        
+     
+    cropped_img_path_list = [] 
+    cropped_img_name_list = [] 
     for img in list_of_image_names:
         img_df = annotation_record_df[annotation_record_df["file_name"]==img]
         for img_item in img_df['file_name'].values:
@@ -105,6 +108,13 @@ def crop_image_with_bbox(images_root_path: str,
             img_saved_name = f"{ann_id}_resized_{img_item}"
             img_ouput_path = os.path.join(output_dir, img_saved_name)
             cropped_img.save(img_ouput_path)
+            
+            cropped_img_name_list.append(img_saved_name)
+            cropped_img_path_list.append(img_ouput_path)
+            
+    return {"cropped_img_names": list_of_image_name_list, 
+            "cropped_img_paths": cropped_img_path_list
+            }
 
             
         
@@ -119,7 +129,7 @@ def crop_image_with_bbox(images_root_path: str,
 
 def get_img_names_labels_paths(img_dir: str, annot_records_df: pd.DataFrame, 
                                img_ext: str = ".jpg"
-                               ):
+                               )-> ImgPropertySetReturnType:
 
     """_summary_
 
