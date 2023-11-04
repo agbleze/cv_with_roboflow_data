@@ -172,7 +172,7 @@ class ImgPropertySetReturnType:
     img_paths: List
 
 #%%
-def get_img_names_labels_paths(img_dir, annot_records_df, img_ext: str = ".jpg"):
+def get_img_names_labels_paths(img_dir, annot_records_df, img_ext: str = ".jpg")->ImgPropertySetReturnType:
 
     """_summary_
 
