@@ -165,7 +165,7 @@ for img in subset_img_name_list:
 
 
 @dataclass
-class ImgNamesLabelsPathsReturn:
+class ImgPropertySetReturnType:
     img_names: List
     img_labels: List
     img_paths: List
@@ -202,7 +202,7 @@ def get_img_names_labels_paths(img_dir, annot_records_df, img_ext: str = ".jpg")
         else:
             #img_name_list.append(img)
             img_labels_list.append(img_label)
-    return ImgNamesLabelsPathsReturn(img_names=img_name_list, 
+    return ImgPropertySetReturnType(img_names=img_name_list, 
                                     img_labels=img_labels_list,
                                     img_paths=img_paths_list
                                     ) 
@@ -219,9 +219,11 @@ img_names_labels_paths = get_img_names_labels_paths(img_dir=subset_img_path, ann
 for nm, lab, path in zip(img_names_labels_paths.img_names,
     img_names_labels_paths.img_labels,
     img_names_labels_paths.img_paths):
-    print(nm, lab, path)   
+    print(f"{i for i in lab}")   
     
-    
+#%%
+for labels in img_names_labels_paths.img_labels:
+    print(f"{i for i in labels}")    
     
 #%%
 len(img_labels_list)
