@@ -221,7 +221,10 @@ for nm, lab, path in zip(img_names_labels_paths.img_names,
     img_names_labels_paths.img_labels,
     img_names_labels_paths.img_paths):
     print(f"{i for i in lab}")   
-    
+
+#%%
+
+img_names_labels_paths.img_labels    
 #%%
 for labels in img_names_labels_paths.img_labels:
     print(f"{i for i in labels}")    
@@ -233,6 +236,7 @@ len(img_labels_list)
 len(img_with_labels_name_list)
 
 #%%
+
 
 
 with open("example.tsv", "w") as eg_file:
