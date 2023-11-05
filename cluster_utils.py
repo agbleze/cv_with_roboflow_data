@@ -46,6 +46,29 @@ def coco_annotation_to_df(coco_annotation_file):
     return all_merged_df
     
 
+def merge_imgs(img_list, 
+				interpolation = cv2.INTER_CUBIC,
+                merge_type="horizontal"):
+    img_array_list = [np.array(img) for img in img_list]
+
+    if merge_type == "horizontal":
+        h_min = min(img.shape[0] for img in img_array_list) 
+        im_list_resize = [cv2.resize(img, 
+					(int(img.shape[1] * h_min / img.shape[0]), 
+						h_min), interpolation 
+								= interpolation) 
+					for img in img_array_list]
+        return cv2.hconcat(im_list_resize)
+    else:
+        h_min = min(img.shape[1] for img in img_array_list)
+        im_list_resize = [cv2.resize(img, 
+                        (int(img.shape[0] * h_min / img.shape[1]), 
+                            h_min), interpolation 
+                                    = interpolation) 
+                        for img in img_array_list] 
+    return cv2.vconcat(im_list_resize)
+
+
 def crop_image_with_bbox(images_root_path: str,
                          output_dir: str,
                          all_images: bool = True, 
@@ -54,7 +77,10 @@ def crop_image_with_bbox(images_root_path: str,
                          use_annotation_record_df: bool = False,
                          annotation_record_df: Union[pd.DataFrame, None] = None,
                          result_store_type: Union[ImgPropertySetReturnType, None] = ImgPropertySetReturnType,
-                         save_img_ext: Union[str, None] = ".jpg" 
+                         save_img_ext: Union[str, None] = ".jpg",
+                         export_merged_crops_per_img: bool = True,
+                         merged_crops_output_dir: str = "merged_cropped_bbox",
+                         merge_crop_of_imgs: bool = False,
                          )->Union[ImgPropertySetReturnType, Dict]:
     
     existing_imgs = glob(f"{output_dir}/*{save_img_ext}")
@@ -101,7 +127,10 @@ def crop_image_with_bbox(images_root_path: str,
     cropped_img_path_list = [] 
     cropped_img_name_list = [] 
     cropped_img_labels_list = [] 
+    merged_cropped_img_path_list = []
+    #all_crops_per_img = []
     for img in list_of_image_names:
+        crops_per_img = []
         img_df = annotation_record_df[annotation_record_df["file_name"]==img]
         for ann_id in img_df['id_annotation'].to_list():
             img_item_df = img_df[img_df['id_annotation']==ann_id]
@@ -111,7 +140,13 @@ def crop_image_with_bbox(images_root_path: str,
             img_path = os.path.join(images_root_path, img_name)   
             img = Image.open(img_path)
             cropped_img = img.crop((x,y,x+w, y+h))
+            
+            if merge_crop_of_imgs:
+                crops_per_img.append(cropped_img)
+            
             #ann_id = img_item_df['id_annotation'].to_list()[0]
+            # TODO: merge_crops
+            #
             
             if save_img_ext:
                 img_name_without_ext = os.path.splitext(img_name)[0]
@@ -124,6 +159,8 @@ def crop_image_with_bbox(images_root_path: str,
             img_ouput_path = os.path.join(output_dir, img_saved_name)
             cropped_img.save(img_ouput_path)
             
+            
+            
             ## cropped img labels
             img_item_label = img_item_df['category_name'].to_list()[0]#[img_item_df['id_annotation']==ann_id]
             if len(img_item_label) == 0:
@@ -135,16 +172,28 @@ def crop_image_with_bbox(images_root_path: str,
             
             cropped_img_name_list.append(img_saved_name)
             cropped_img_path_list.append(img_ouput_path)
+        
+        if merge_crop_of_imgs:
+            merged_img = merge_imgs(img_list=crops_per_img)
+            merged_cropped_img_path_list.append(merged_img)
+            if export_merged_crops_per_img:
+                os.makedirs(merged_crops_output_dir, exist_ok=True)
+                if export_merged_crops_per_img:
+                    save_merged_crop_path = os.path.join(merged_crops_output_dir, img)
+                    merged_img.save(save_merged_crop_path)
+                
             
     if isinstance(result_store_type, ImgPropertySetReturnType):
         result_store_type.cropped_img_names = cropped_img_name_list
         result_store_type.cropped_img_paths = cropped_img_path_list
         result_store_type.cropped_img_labels = cropped_img_labels_list
+        result_store_type.merged_cropped_img_paths = merged_cropped_img_path_list
             
     else:
         result_store_type = {"cropped_img_names": list_of_image_name_list, 
                             "cropped_img_paths": cropped_img_path_list,
-                            "cropped_img_labels": cropped_img_labels_list
+                            "cropped_img_labels": cropped_img_labels_list,
+                            "merged_cropped_img_paths": merged_cropped_img_path_list
                             }
     return result_store_type
 
