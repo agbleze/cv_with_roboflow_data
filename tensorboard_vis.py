@@ -15,7 +15,9 @@ from PIL import Image
 from tensorboard.plugins import projector
 from tensorboard import notebook
 from clusteval import clusteval
-
+from cluster_utils import (crop_image_with_bbox, coco_annotation_to_df, 
+                           ImgPropertySetReturnType, get_img_names_labels_paths
+                           )
 
 #%%
 seed = 2023
@@ -188,23 +190,65 @@ np.random.seed(seed)
     
     
 #%%    
-def get_classwise_image_path(root_dir):
-    image_paths = dict()
-    classes = os.listdir(root_dir)
-    for cls in classes:
-        image_paths[cls] = []
-        class_dir = os.path.join(root_dir, cls)
-        images = os.listdir(class_dir)
-        for image_name in images:
-            img_path = os.path.join(class_dir, image_name)
-            image_paths[cls].append(img_path)
-    return image_paths
+# def get_classwise_image_path(root_dir):
+#     image_paths = dict()
+#     classes = os.listdir(root_dir)
+#     for cls in classes:
+#         image_paths[cls] = []
+#         class_dir = os.path.join(root_dir, cls)
+#         images = os.listdir(class_dir)
+#         for image_name in images:
+#             img_path = os.path.join(class_dir, image_name)
+#             image_paths[cls].append(img_path)
+#     return image_paths
 
 
 #%%
-IMG_ROOT_DIR = "subset_extract_folder"#'animal10'
-image_paths_dict = get_classwise_image_path(IMG_ROOT_DIR)
+#IMG_ROOT_DIR = "subset_extract_folder"#'animal10'
+#image_paths_dict = get_classwise_image_path(IMG_ROOT_DIR)
 
+annot_file = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/valid/_annotations.coco.json"
+
+img_root = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subset_extract_folder/valid_subset"
+#%%
+annot_df = coco_annotation_to_df(coco_annotation_file=annot_file)
+
+#%%
+img_props = get_img_names_labels_paths(img_dir=img_root, annot_records_df=annot_df, 
+                                        img_ext = ".jpg"
+                                        )
+
+#%%
+
+cropped_img_props = crop_image_with_bbox(coco_annotation_file_path=annot_file, 
+                                         all_images=False,
+                                        images_root_path=img_root, output_dir="cropped_imgs",
+                                        image_names=img_props.img_names,
+                                        result_store_type = img_props,
+                                        save_img_ext=".png"
+                                        )    
+    
+#%%
+
+# img_test = img_props.img_names[0]
+
+
+# #%%
+# img_df = annot_df[annot_df["file_name"]==img_test]
+
+# #%%
+# ann_id = img_df['id_annotation'].to_list()
+
+# img_item_df = img_df[img_df['id_annotation']==ann_id]
+# img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
+# x, y, w, h = img_item_bbox
+
+#%%
+# import os
+# print(os.path.splitext("/path/to/some/file.txt")[0])
+
+# #%%
+# os.path.splitext("file.jpg")[0]
 
 #%%
 IMG_WIDTH, IMG_HEIGHT = (224, 224)
@@ -260,7 +304,8 @@ def get_feature_extractor(model):
     x = model(inputs)
     outputs = tf.keras.layers.GlobalAveragePooling2D()(x)
     feat_ext = tf.keras.Model(inputs=inputs, outputs=outputs, 
-        name="feature_extractor")
+                                name="feature_extractor"
+                            )
     return feat_ext
 
 
@@ -310,27 +355,195 @@ def load_image_for_inference(image_path, img_shape):
 
 
 
-def get_images_labels_features(image_paths_dict, feature_extractor, preprocess):
-    images = []
-    labels = []
-    features = []
+# def get_images_labels_features(image_paths_dict, feature_extractor, preprocess):
+#     images = []
+#     labels = []
+#     features = []
  
-    for cls in image_paths_dict:
-        image_paths = image_paths_dict[cls]
-        for img_path in image_paths:
-            labels.append(cls)
-            img = load_and_resize_image(img_path, IMG_WIDTH, IMG_HEIGHT)
-            images.append(img)
-            img_for_infer = load_image_for_inference(img_path, IMAGE_SHAPE)
-            feature = extract_features(img_for_infer, 
-                feature_extractor, 
-                preprocess)
-            features.append(feature)
-    return images, labels, features
+#     for cls in image_paths_dict:
+#         image_paths = image_paths_dict[cls]
+#         for img_path in image_paths:
+#             labels.append(cls)
+#             img = load_and_resize_image(img_path, IMG_WIDTH, IMG_HEIGHT)
+#             images.append(img)
+#             img_for_infer = load_image_for_inference(img_path, IMAGE_SHAPE)
+#             feature = extract_features(img_for_infer, 
+#                 feature_extractor, 
+#                 preprocess)
+#             features.append(feature)
+#     return images, labels, features
 
 
 #%%
-images, labels, features = get_images_labels_features(image_paths_dict, feat_ext_model, preprocess)
+def get_images_features(img_property_set: ImgPropertySetReturnType,
+                        feature_extractor, preprocess, img_width, img_height,
+                        use_cropped_imgs: bool = False,
+                        use_merged_cropped_imgs: bool = False
+                        )->ImgPropertySetReturnType:
+    images = []
+    features = []
+    
+    if use_cropped_imgs and use_merged_cropped_imgs:
+        raise Error("""Both `use_cropped_imgs` and `use_merged_cropped_imgs` were set to True.
+                        Only one of them can be set to True at a time. You can only extract 
+                        features from either of them at a time. Hint: Set Either of them to True 
+                        and the other to False if you do not want to use full image.
+                        By default when both are false, The full image is used for feature extraction.
+                    """)
+        
+    if use_merged_cropped_imgs:
+        img_paths = sorted(img_property_set.merged_cropped_img_paths)
+    if use_cropped_imgs:
+        img_paths = sorted(img_property_set.cropped_img_paths)
+    else:
+        img_paths = sorted(img_property_set.img_paths)
+        
+    for img_path in img_paths:
+        img = load_and_resize_image(img_path, img_width, img_height)
+        images.append(img)
+        img_for_infer = load_image_for_inference(img_path, IMAGE_SHAPE)
+        feature = extract_features(img_for_infer, feature_extractor, preprocess)
+        features.append(feature)
+    
+    if use_cropped_imgs:
+        img_property_set.cropped_imgs = images
+        img_property_set.cropped_imgs_features = features
+            
+    img_property_set.imgs = images
+    img_property_set.features = features
+    
+    return img_property_set
+        
+
+#%%
+img_feat = get_images_features(img_property_set=img_props,
+                               feature_extractor=feat_ext_model,
+                               preprocess=preprocess, img_width=IMG_WIDTH,
+                               img_height=IMG_HEIGHT, use_cropped_imgs=True
+                               )
+
+#%%
+if hasattr(img_feat, "cropped_imgs"):
+    images = img_feat.cropped_imgs
+    features = img_feat.cropped_imgs_features
+    labels = img_feat.cropped_img_labels
+else:    
+    images = img_feat.images
+    labels = img_feat.img_labels
+    features = img_feat.features
+
+
+#%%
+import matplotlib.pyplot as plt
+import cv2
+
+
+#%%
+plt.imshow(np.array(images[50]))#.shape
+#%%
+
+#%%
+
+feat_list = [features[0][:], features[1][:], features[2][:], features[3][:]]
+
+#%%
+
+len(feat_list)
+#%%
+feat_array = np.array(feat_list)
+
+#%%
+feat_array.shape
+
+#%%
+
+feat_concat = np.concatenate((features[0], features[1], features[2], features[3])).shape
+
+#%%
+
+len(feat_list)
+#%%
+
+pca = PCA(n_components=2048)
+
+pca.fit_transform(feat_array)
+#%%
+
+
+# define a function for horizontally 
+# concatenating images of different 
+# heights 
+def merge_imgs(img_list, 
+				interpolation = cv2.INTER_CUBIC,
+                merge_type="horizontal"):
+    img_array_list = [np.array(img) for img in img_list]
+
+    if merge_type == "horizontal":
+        h_min = min(img.shape[0] for img in img_array_list) 
+        im_list_resize = [cv2.resize(img, 
+					(int(img.shape[1] * h_min / img.shape[0]), 
+						h_min), interpolation 
+								= interpolation) 
+					for img in img_array_list]
+        return cv2.hconcat(im_list_resize)
+    else:
+        h_min = min(img.shape[1] for img in img_array_list)
+        im_list_resize = [cv2.resize(img, 
+                        (int(img.shape[0] * h_min / img.shape[1]), 
+                            h_min), interpolation 
+                                    = interpolation) 
+                        for img in img_array_list] 
+    return cv2.vconcat(im_list_resize)
+
+
+
+#%%
+# define a function for vertically 
+# concatenating images of different 
+# widths 
+def vconcat_resize(img_list, interpolation 
+				= cv2.INTER_CUBIC): 
+	# take minimum width 
+	w_min = min(img.shape[1] 
+				for img in img_list) 
+	
+	# resizing images 
+	im_list_resize = [cv2.resize(img, 
+					(w_min, int(img.shape[0] * w_min / img.shape[1])), 
+								interpolation = interpolation) 
+					for img in img_list] 
+	# return final image 
+	return cv2.vconcat(im_list_resize) 
+
+# function calling 
+# img_v_resize = vconcat_resize([img1, img2, img1]) 
+
+# # show the output image 
+# cv2.imwrite('vconcat_resize.jpg', img_v_resize) 
+
+#%%
+
+#%% function calling 
+img_h_resize = merge_imgs([images[10], images[2], images[13]], merge_type="vertical") 
+
+plt.imshow(img_h_resize)
+
+#%%
+img_h_resize.shape
+
+
+#%% show the Output image 
+cv2.imshow('hconcat_resize.jpg', img_h_resize) 
+
+
+
+
+
+
+
+
+#%%
+#images, labels, features = get_images_labels_features(image_paths_dict, feat_ext_model, preprocess)
 
 
 
@@ -352,10 +565,14 @@ clus_obj.keys()
 
 #%%
 
-clus_obj['score']
+#clus_obj['score']
 
 #%%
 clusters = clus_obj['labx']
+
+
+#%%
+img_feat.cropped_img_clusters = clusters
 
 #%%
 def create_sprite_image(pil_images, save_path):
@@ -385,17 +602,81 @@ def create_sprite_image(pil_images, save_path):
 
 
 #%%
-def write_embedding(log_dir, pil_images, features, labels, clusters):
+# def write_embedding(log_dir, pil_images, features, labels, clusters):
+#     """Writes embedding data and projector configuration to the logdir."""
+#     metadata_filename = "metadata.tsv"
+#     tensor_filename = "features.tsv"
+#     sprite_image_filename = "sprite.jpg"
+ 
+ 
+#     os.makedirs(log_dir, exist_ok=True)
+#     with open(os.path.join(log_dir, metadata_filename), "w") as f:
+#         for label, cluster in zip(labels, clusters):
+#             f.write(f"{label} cluster_{cluster}\n")
+#     with open(os.path.join(log_dir, tensor_filename), "w") as f:
+#         for tensor in features:
+#             f.write("{}\n".format("\t".join(str(x) for x in tensor)))
+ 
+#     sprite_image_path = os.path.join(log_dir, sprite_image_filename)
+ 
+#     config = projector.ProjectorConfig()
+#     embedding = config.embeddings.add()
+#     # Label info.
+#     embedding.metadata_path = metadata_filename
+#     # Features info.
+#     embedding.tensor_path = tensor_filename
+#     # Image info.
+#     create_sprite_image(pil_images, sprite_image_path)
+#     embedding.sprite.image_path = sprite_image_filename
+#     # Specify the width and height of a single thumbnail.
+#     img_width, img_height = pil_images[0].size
+#     embedding.sprite.single_image_dim.extend([img_width, img_height])
+#     # Create the configuration file.
+#     projector.visualize_embeddings(log_dir, config)
+     
+#     return
+
+
+
+#%%
+
+def write_embedding(img_property_set: ImgPropertySetReturnType, log_dir: str,
+                    use_cropped_imgs: bool = False
+                    ):
     """Writes embedding data and projector configuration to the logdir."""
     metadata_filename = "metadata.tsv"
     tensor_filename = "features.tsv"
     sprite_image_filename = "sprite.jpg"
- 
- 
+    
+    if use_cropped_imgs:
+        if not hasattr(img_property_set, "cropped_imgs"):
+            raise Error("""img_property_set provided is not that of cropped images while 
+                        use_cropped_imgs is set to True. Either set use_cropped_imgs to False
+                        to False when you have not cropped images OR crop images and pass the returns
+                        of type ImgPropertySetReturnType to img_property_set
+                        """
+                        )
+        else:
+            pil_images = img_property_set.cropped_imgs
+            features = img_property_set.cropped_imgs_features
+            labels = img_property_set.cropped_img_labels
+            clusters = img_property_set.cropped_img_clusters
+            img_names = img_property_set.cropped_img_names
+    else:
+        pil_images = img_property_set.imgs
+        features = img_property_set.features
+        labels = img_property_set.img_labels
+        clusters = img_property_set.clusters
+        img_names = img_property_set.img_names
+    
     os.makedirs(log_dir, exist_ok=True)
+    
     with open(os.path.join(log_dir, metadata_filename), "w") as f:
-        for label, cluster in zip(labels, clusters):
-            f.write(f"{label} cluster_{cluster}\n")
+        for label, cluster, img in zip(labels, clusters, img_names):
+            #[f.write(f"{i}    \n") for i in label]
+            f.write(f"{str(label)[0:-1]} cluster_{cluster}\n")
+            #f.write(f"{label} cluster_{cluster}\n")
+            #[eg_file.write(f"{i}    ") for i in img_labels]
     with open(os.path.join(log_dir, tensor_filename), "w") as f:
         for tensor in features:
             f.write("{}\n".format("\t".join(str(x) for x in tensor)))
@@ -419,11 +700,32 @@ def write_embedding(log_dir, pil_images, features, labels, clusters):
      
     return
 
+#%%
+LOG_DIR = os.path.join('cropped_logs', MODEL_NAME)
+
+#%%
+
+write_embedding(img_property_set=img_feat, log_dir=LOG_DIR,
+                use_cropped_imgs=True
+                )
 
 
 #%%
-LOG_DIR = os.path.join('logs', MODEL_NAME)
-write_embedding(LOG_DIR, images, features, labels, clusters)
+
+#img_feat.cropped_img_labels
+
+#%%
+#li = ['Mosaic Virus', 'Mosaic Virus', 'Mosaic Virus', 'Mosaic Virus']
+
+#%%
+
+#str(li)[1:-1]
+#%%
+#f"{item }"
+
+
+#%%
+#write_embedding(LOG_DIR, images, features, labels, clusters)
 
 
 #%%
