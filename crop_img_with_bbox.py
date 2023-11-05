@@ -236,9 +236,16 @@ len(img_labels_list)
 len(img_with_labels_name_list)
 
 #%%
+# TODO: CLUSTERING CROPPED IMGS FOR FULL IMG
+#. cropped the imgs based on bbox
+# merge cropped images
+# store the cropped images in same order as the actual image
 
 
 
+
+
+#%%
 with open("example.tsv", "w") as eg_file:
     [eg_file.write(f"{i}    ") for i in img_labels]
 
