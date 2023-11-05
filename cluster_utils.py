@@ -53,8 +53,13 @@ def crop_image_with_bbox(images_root_path: str,
                          image_names: Union[str, List, None] = None, 
                          use_annotation_record_df: bool = False,
                          annotation_record_df: Union[pd.DataFrame, None] = None,
-                         result_store_type: Union[ImgPropertySetReturnType, None] = ImgPropertySetReturnType 
+                         result_store_type: Union[ImgPropertySetReturnType, None] = ImgPropertySetReturnType,
+                         save_img_ext: Union[str, None] = ".jpg" 
                          )->Union[ImgPropertySetReturnType, Dict]:
+    
+    existing_imgs = glob(f"{output_dir}/*{save_img_ext}")
+    print("Will remove existing images with {save_img_ext} in output directory if found")
+    [os.remove(f) for f in existing_imgs if len(existing_imgs) > 0]
     os.makedirs(output_dir, exist_ok=True)
     if use_annotation_record_df and (not annotation_record_df or not isinstance(annotation_record_df, pd.DataFrame)):
         raise Error("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
@@ -98,20 +103,29 @@ def crop_image_with_bbox(images_root_path: str,
     cropped_img_labels_list = [] 
     for img in list_of_image_names:
         img_df = annotation_record_df[annotation_record_df["file_name"]==img]
-        for img_item in img_df['file_name'].values:
-            img_item_df = img_df[img_df['file_name']==img_item]
+        for ann_id in img_df['id_annotation'].to_list():
+            img_item_df = img_df[img_df['id_annotation']==ann_id]
             img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
             x, y, w, h = img_item_bbox
-            img_path = os.path.join(images_root_path, img_item)   
+            img_name = img_item_df['file_name'].to_list()[0]
+            img_path = os.path.join(images_root_path, img_name)   
             img = Image.open(img_path)
             cropped_img = img.crop((x,y,x+w, y+h))
-            ann_id = img_item_df['id_annotation'].to_list()[0]
-            img_saved_name = f"{ann_id}_resized_{img_item}"
+            #ann_id = img_item_df['id_annotation'].to_list()[0]
+            
+            if save_img_ext:
+                img_name_without_ext = os.path.splitext(img_name)[0]
+                default_img_ext = os.path.splitext(img_name)[1]
+                if default_img_ext != save_img_ext:
+                    print(f"Default Image in {default_img_ext} but saving cropped img in {save_img_ext}")
+                    
+                    img_name = img_name_without_ext + save_img_ext
+            img_saved_name = f"{ann_id}_cropped_{img_name}"
             img_ouput_path = os.path.join(output_dir, img_saved_name)
             cropped_img.save(img_ouput_path)
             
             ## cropped img labels
-            img_item_label = img_item_df['category_name'].values#[img_item_df['id_annotation']==ann_id]
+            img_item_label = img_item_df['category_name'].to_list()[0]#[img_item_df['id_annotation']==ann_id]
             if len(img_item_label) == 0:
                 label = "None"
                 cropped_img_labels_list.append([label])
@@ -133,17 +147,6 @@ def crop_image_with_bbox(images_root_path: str,
                             "cropped_img_labels": cropped_img_labels_list
                             }
     return result_store_type
-
-            
-        
-        
-                #print(f"Successfully and cropped {img_item} with bbox {img_item_bbox} and saved as {img_saved_name}")
-
-
-
-
-
-
 
 def get_img_names_labels_paths(img_dir: str, annot_records_df: pd.DataFrame, 
                                img_ext: str = ".jpg"
