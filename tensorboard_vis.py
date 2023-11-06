@@ -391,7 +391,7 @@ def get_images_features(img_property_set: ImgPropertySetReturnType,
     features = []
     
     if use_cropped_imgs and use_merged_cropped_imgs:
-        raise Error("""Both `use_cropped_imgs` and `use_merged_cropped_imgs` were set to True.
+        raise Exception("""Both `use_cropped_imgs` and `use_merged_cropped_imgs` were set to True.
                         Only one of them can be set to True at a time. You can only extract 
                         features from either of them at a time. Hint: Set Either of them to True 
                         and the other to False if you do not want to use full image.
@@ -415,6 +415,11 @@ def get_images_features(img_property_set: ImgPropertySetReturnType,
     if use_cropped_imgs:
         img_property_set.cropped_imgs = images
         img_property_set.cropped_imgs_features = features
+    elif use_merged_cropped_imgs:
+        img_property_set.merged_cropped_imgs = images
+        img_property_set.merged_cropped_imgs_features = features
+        
+        
             
     img_property_set.imgs = images
     img_property_set.features = features
@@ -426,7 +431,8 @@ def get_images_features(img_property_set: ImgPropertySetReturnType,
 img_feat = get_images_features(img_property_set=img_props,
                                feature_extractor=feat_ext_model,
                                preprocess=preprocess, img_width=IMG_WIDTH,
-                               img_height=IMG_HEIGHT, use_cropped_imgs=True
+                               img_height=IMG_HEIGHT, use_cropped_imgs=False,
+                               use_merged_cropped_imgs=True
                                )
 
 #%%
@@ -434,6 +440,11 @@ if hasattr(img_feat, "cropped_imgs"):
     images = img_feat.cropped_imgs
     features = img_feat.cropped_imgs_features
     labels = img_feat.cropped_img_labels
+elif hasattr(img_feat, "merged_cropped_imgs"):
+    images = img_feat.merged_cropped_imgs
+    features = img_feat.merged_cropped_imgs_features
+    #labels = img_feat.cropped_img_labels
+    
 else:    
     images = img_feat.images
     labels = img_feat.img_labels
@@ -554,7 +565,7 @@ def write_embedding(img_property_set: ImgPropertySetReturnType, log_dir: str,
     
     if use_cropped_imgs:
         if not hasattr(img_property_set, "cropped_imgs"):
-            raise Error("""img_property_set provided is not that of cropped images while 
+            raise Exception("""img_property_set provided is not that of cropped images while 
                         use_cropped_imgs is set to True. Either set use_cropped_imgs to False
                         to False when you have not cropped images OR crop images and pass the returns
                         of type ImgPropertySetReturnType to img_property_set
