@@ -8,6 +8,8 @@ from pandas import json_normalize
 from typing import NamedTuple, List, Union,Callable, Optional, Dict
 from dataclasses import dataclass
 from glob import glob
+import cv2
+import numpy as np
 
 
 
@@ -114,7 +116,7 @@ def crop_image_with_bbox(images_root_path: str,
                         )       
 
     if all_images:
-        list_of_image_names = annotation_record_df['file_name'].values
+        list_of_image_names = sorted(annotation_record_df['file_name'].values)
     else:
         if isinstance(image_names, str):
             image_names = [image_names]
@@ -122,16 +124,17 @@ def crop_image_with_bbox(images_root_path: str,
         else:
             if not isinstance(image_names, List):
                 raise Error("Image names must be provided as a list if all_images is set to False")
-        list_of_image_names = image_names    
+        list_of_image_names = sorted(image_names)    
      
     cropped_img_path_list = [] 
     cropped_img_name_list = [] 
     cropped_img_labels_list = [] 
     merged_cropped_img_path_list = []
+    merged_cropped_img_list = [] 
     #all_crops_per_img = []
-    for img in list_of_image_names:
+    for img_name_item in list_of_image_names:
         crops_per_img = []
-        img_df = annotation_record_df[annotation_record_df["file_name"]==img]
+        img_df = annotation_record_df[annotation_record_df["file_name"]==img_name_item]
         for ann_id in img_df['id_annotation'].to_list():
             img_item_df = img_df[img_df['id_annotation']==ann_id]
             img_item_bbox = img_item_df['bbox'].to_list()[0]#.values
@@ -175,12 +178,16 @@ def crop_image_with_bbox(images_root_path: str,
         
         if merge_crop_of_imgs:
             merged_img = merge_imgs(img_list=crops_per_img)
-            merged_cropped_img_path_list.append(merged_img)
+            merged_cropped_img_list.append(merged_img)
             if export_merged_crops_per_img:
                 os.makedirs(merged_crops_output_dir, exist_ok=True)
                 if export_merged_crops_per_img:
-                    save_merged_crop_path = os.path.join(merged_crops_output_dir, img)
-                    merged_img.save(save_merged_crop_path)
+                    save_merged_crop_path = os.path.join(merged_crops_output_dir, img_name_item)
+                    # show the output image 
+                    cv2.imwrite(save_merged_crop_path, merged_img)
+                    merged_cropped_img_path_list.append(save_merged_crop_path)
+                    #np.save(img_name_item, merged_img)
+                   # merged_img.save(img_name_item)
                 
             
     if isinstance(result_store_type, ImgPropertySetReturnType):
@@ -188,12 +195,14 @@ def crop_image_with_bbox(images_root_path: str,
         result_store_type.cropped_img_paths = cropped_img_path_list
         result_store_type.cropped_img_labels = cropped_img_labels_list
         result_store_type.merged_cropped_img_paths = merged_cropped_img_path_list
+        result_store_type.merged_cropped_imgs = merged_cropped_img_list
             
     else:
         result_store_type = {"cropped_img_names": list_of_image_name_list, 
                             "cropped_img_paths": cropped_img_path_list,
                             "cropped_img_labels": cropped_img_labels_list,
-                            "merged_cropped_img_paths": merged_cropped_img_path_list
+                            "merged_cropped_img_paths": merged_cropped_img_path_list,
+                            "merged_cropped_imgs": merged_cropped_img_list
                             }
     return result_store_type
 
