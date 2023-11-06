@@ -90,7 +90,7 @@ def crop_image_with_bbox(images_root_path: str,
     [os.remove(f) for f in existing_imgs if len(existing_imgs) > 0]
     os.makedirs(output_dir, exist_ok=True)
     if use_annotation_record_df and (not annotation_record_df or not isinstance(annotation_record_df, pd.DataFrame)):
-        raise Error("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
+        raise Exception("""annotation_record_df is None or not a pandas DataFrame while use_annotation_record_df is True. 
                         Please provide a dataframe for annotation_record_df with a column name as file_name for 
                         image names OR set use_annotation_record_df to False and provide a coco annotation file path
                         for coco_annotation_file_path
@@ -110,7 +110,7 @@ def crop_image_with_bbox(images_root_path: str,
                 )
      
     if "file_name" not in annotation_record_df.columns:
-            raise Error("""The is no file_name key in coco annotation file or no such column name
+            raise Exception("""The is no file_name key in coco annotation file or no such column name
                         in the 
                         annotation_record_df provided. This is required"""
                         )       
@@ -123,7 +123,7 @@ def crop_image_with_bbox(images_root_path: str,
         
         else:
             if not isinstance(image_names, List):
-                raise Error("Image names must be provided as a list if all_images is set to False")
+                raise Exception("Image names must be provided as a list if all_images is set to False")
         list_of_image_names = sorted(image_names)    
      
     cropped_img_path_list = [] 
