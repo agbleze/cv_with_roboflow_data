@@ -226,7 +226,8 @@ cropped_img_props = crop_image_with_bbox(coco_annotation_file_path=annot_file,
                                         images_root_path=img_root, output_dir="cropped_imgs",
                                         image_names=img_props.img_names,
                                         result_store_type = img_props,
-                                        save_img_ext=".png"
+                                        save_img_ext=".png",
+                                        merge_crop_of_imgs=True
                                         )    
     
 #%%
