@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+import cv2
  
 import requests
 from zipfile import ZipFile
@@ -433,201 +434,6 @@ else:
     features = img_feat.features
 
 
-#%%
-import matplotlib.pyplot as plt
-import cv2
-
-
-#%%
-plt.imshow(np.array(images[50]))#.shape
-#%%
-features[0].shape
-#%%
-
-feat_list = [features[0][:], features[1][:], features[2][:], features[3][:]]
-
-#%%
-
-len(feat_list)
-#%%
-feat_array = np.array(feat_list)
-
-#%%
-feat_array.shape
-
-#%%
-
-feat_concat = np.concatenate((features[0], features[1], features[2], features[3])).reshape(-1,1)#.shape
-
-
-#%%
-feat_concat.shape
-#%%
-
-len(feat_list)
-#%%
-
-pca = PCA(n_components=3)
-
-pca.fit_transform(feat_concat)
-
-
-#%%
-
-#%%
-import pywt
-import cv2
-from PIL import Image
-import numpy as np
-import matplotlib.pyplot as plt
-
-#%% This function does the coefficient fusing according to the fusion method
-def fuseCoeff(cooef1, cooef2, method):
-
-    if (method == 'mean'):
-        cooef = (cooef1 + cooef2) / 2
-    elif (method == 'min'):
-        cooef = np.minimum(cooef1,cooef2)
-    elif (method == 'max'):
-        cooef = np.maximum(cooef1,cooef2)
-    else:
-        cooef = []
-
-    return cooef
-
-
-# Params
-FUSION_METHOD = 'mean' # Can be 'min' || 'max || anything you choose according theory
-
-#%% Read the two image
-img_path1 = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/cropped_imgs/67.0_cropped_62EggPlant_Mosaic_jpg.rf.19e9a3fb54af6e0aac7ae9ad00c125dd.png"
-img_path2 = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/cropped_imgs/68.0_cropped_62EggPlant_Mosaic_jpg.rf.19e9a3fb54af6e0aac7ae9ad00c125dd.png"
-I1 = cv2.imread(img_path1)
-I2 = cv2.imread(img_path2)
-
-I1 = cv2.cvtColor(I1, cv2.COLOR_BGR2RGB)
-I2 = cv2.cvtColor(I2, cv2.COLOR_BGR2RGB)
-#plt.imshow(img1)
-#I1 = plt.imread(img_path1)
-#I2 = plt.imread(img_path2)
-
-#%%
-
-I1.shape
-
-#%%
-I2.shape
-
-#%% We need to have both images the same size
-I2 = cv2.resize(I2,(I1.shape[1], I1.shape[0])) # I do this just because i used two random images
-
-## Fusion algo
-
-#%%
-
-plt.imshow(I2)
-
-#%%
-plt.imshow(I1)
-
-#%% First: Do wavelet transform on each image
-wavelet = 'db1'
-cooef1 = pywt.wavedec2(I1[:,:], wavelet)
-cooef2 = pywt.wavedec2(I2[:,:], wavelet)
-
-# Second: for each level in both image do the fusion according to the desire option
-fusedCooef = []
-for i in range(len(cooef1)-1):
-
-    # The first values in each decomposition is the apprximation values of the top level
-    if(i == 0):
-
-        fusedCooef.append(fuseCoeff(cooef1[0],cooef2[0],FUSION_METHOD))
-
-    else:
-
-        # For the rest of the levels we have tupels with 3 coeeficents
-        c1 = fuseCoeff(cooef1[i][0],cooef2[i][0],FUSION_METHOD)
-        c2 = fuseCoeff(cooef1[i][1], cooef2[i][1], FUSION_METHOD)
-        c3 = fuseCoeff(cooef1[i][2], cooef2[i][2], FUSION_METHOD)
-
-        fusedCooef.append((c1,c2,c3))
-
-# Third: After we fused the cooefficent we nned to transfor back to get the image
-fusedImage = pywt.waverec2(fusedCooef, wavelet)
-
-# Forth: normmalize values to be in uint8
-fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
-fusedImage = fusedImage.astype(np.uint8)
-#%%
-
-
-# define a function for horizontally 
-# concatenating images of different 
-# heights 
-def merge_imgs(img_list, 
-				interpolation = cv2.INTER_CUBIC,
-                merge_type="horizontal"):
-    img_array_list = [np.array(img) for img in img_list]
-
-    if merge_type == "horizontal":
-        h_min = min(img.shape[0] for img in img_array_list) 
-        im_list_resize = [cv2.resize(img, 
-					(int(img.shape[1] * h_min / img.shape[0]), 
-						h_min), interpolation 
-								= interpolation) 
-					for img in img_array_list]
-        return cv2.hconcat(im_list_resize)
-    else:
-        h_min = min(img.shape[1] for img in img_array_list)
-        im_list_resize = [cv2.resize(img, 
-                        (int(img.shape[0] * h_min / img.shape[1]), 
-                            h_min), interpolation 
-                                    = interpolation) 
-                        for img in img_array_list] 
-    return cv2.vconcat(im_list_resize)
-
-
-
-#%%
-# define a function for vertically 
-# concatenating images of different 
-# widths 
-def vconcat_resize(img_list, interpolation 
-				= cv2.INTER_CUBIC): 
-	# take minimum width 
-	w_min = min(img.shape[1] 
-				for img in img_list) 
-	
-	# resizing images 
-	im_list_resize = [cv2.resize(img, 
-					(w_min, int(img.shape[0] * w_min / img.shape[1])), 
-								interpolation = interpolation) 
-					for img in img_list] 
-	# return final image 
-	return cv2.vconcat(im_list_resize) 
-
-# function calling 
-# img_v_resize = vconcat_resize([img1, img2, img1]) 
-
-# # show the output image 
-# cv2.imwrite('vconcat_resize.jpg', img_v_resize) 
-
-#%%
-
-#%% function calling 
-img_h_resize = merge_imgs([images[10], images[2], images[13]], merge_type="vertical") 
-
-plt.imshow(img_h_resize)
-
-#%%
-img_h_resize.shape
-
-
-#%% show the Output image 
-cv2.imshow('hconcat_resize.jpg', img_h_resize) 
-
-
 
 
 
@@ -835,3 +641,202 @@ notebook.start(f"--logdir {LOG_DIR} --port default")
         
 
 # %%
+#%%
+import matplotlib.pyplot as plt
+import cv2
+
+
+#%%
+plt.imshow(np.array(images[50]))#.shape
+#%%
+features[0].shape
+#%%
+
+feat_list = [features[0][:], features[1][:], features[2][:], features[3][:]]
+
+#%%
+
+len(feat_list)
+#%%
+feat_array = np.array(feat_list)
+
+#%%
+feat_array.shape
+
+#%%
+
+feat_concat = np.concatenate((features[0], features[1], features[2], features[3])).reshape(-1,1)#.shape
+
+
+#%%
+feat_concat.shape
+#%%
+
+len(feat_list)
+#%%
+
+pca = PCA(n_components=3)
+
+pca.fit_transform(feat_concat)
+
+
+#%%
+
+#%%
+import pywt
+import cv2
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+
+#%% This function does the coefficient fusing according to the fusion method
+def fuseCoeff(cooef1, cooef2, method):
+
+    if (method == 'mean'):
+        cooef = (cooef1 + cooef2) / 2
+    elif (method == 'min'):
+        cooef = np.minimum(cooef1,cooef2)
+    elif (method == 'max'):
+        cooef = np.maximum(cooef1,cooef2)
+    else:
+        cooef = []
+
+    return cooef
+
+
+# Params
+FUSION_METHOD = 'mean' # Can be 'min' || 'max || anything you choose according theory
+
+#%% Read the two image
+img_path1 = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/cropped_imgs/67.0_cropped_62EggPlant_Mosaic_jpg.rf.19e9a3fb54af6e0aac7ae9ad00c125dd.png"
+img_path2 = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/cropped_imgs/68.0_cropped_62EggPlant_Mosaic_jpg.rf.19e9a3fb54af6e0aac7ae9ad00c125dd.png"
+I1 = cv2.imread(img_path1)
+I2 = cv2.imread(img_path2)
+
+I1 = cv2.cvtColor(I1, cv2.COLOR_BGR2RGB)
+I2 = cv2.cvtColor(I2, cv2.COLOR_BGR2RGB)
+#plt.imshow(img1)
+#I1 = plt.imread(img_path1)
+#I2 = plt.imread(img_path2)
+
+#%%
+
+I1.shape
+
+#%%
+I2.shape
+
+#%% We need to have both images the same size
+I2 = cv2.resize(I2,(I1.shape[1], I1.shape[0])) # I do this just because i used two random images
+
+## Fusion algo
+
+#%%
+
+plt.imshow(I2)
+
+#%%
+plt.imshow(I1)
+
+#%% First: Do wavelet transform on each image
+wavelet = 'db1'
+cooef1 = pywt.wavedec2(images[0], wavelet)
+cooef2 = pywt.wavedec2(images[1], wavelet)
+
+# Second: for each level in both image do the fusion according to the desire option
+fusedCooef = []
+for i in range(len(cooef1)-1):
+
+    # The first values in each decomposition is the apprximation values of the top level
+    if(i == 0):
+
+        fusedCooef.append(fuseCoeff(cooef1[0],cooef2[0],FUSION_METHOD))
+
+    else:
+
+        # For the rest of the levels we have tupels with 3 coeeficents
+        c1 = fuseCoeff(cooef1[i][0],cooef2[i][0],FUSION_METHOD)
+        c2 = fuseCoeff(cooef1[i][1], cooef2[i][1], FUSION_METHOD)
+        c3 = fuseCoeff(cooef1[i][2], cooef2[i][2], FUSION_METHOD)
+
+        fusedCooef.append((c1,c2,c3))
+
+# Third: After we fused the cooefficent we nned to transfor back to get the image
+fusedImage = pywt.waverec2(fusedCooef, wavelet)
+
+# Forth: normmalize values to be in uint8
+fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
+fusedImage = fusedImage.astype(np.uint8)
+
+#%%
+fusedImage.shape
+
+#%%
+
+
+# define a function for horizontally 
+# concatenating images of different 
+# heights 
+def merge_imgs(img_list, 
+				interpolation = cv2.INTER_CUBIC,
+                merge_type="horizontal"):
+    img_array_list = [np.array(img) for img in img_list]
+
+    if merge_type == "horizontal":
+        h_min = min(img.shape[0] for img in img_array_list) 
+        im_list_resize = [cv2.resize(img, 
+					(int(img.shape[1] * h_min / img.shape[0]), 
+						h_min), interpolation 
+								= interpolation) 
+					for img in img_array_list]
+        return cv2.hconcat(im_list_resize)
+    else:
+        h_min = min(img.shape[1] for img in img_array_list)
+        im_list_resize = [cv2.resize(img, 
+                        (int(img.shape[0] * h_min / img.shape[1]), 
+                            h_min), interpolation 
+                                    = interpolation) 
+                        for img in img_array_list] 
+    return cv2.vconcat(im_list_resize)
+
+
+
+#%%
+# define a function for vertically 
+# concatenating images of different 
+# widths 
+def vconcat_resize(img_list, interpolation 
+				= cv2.INTER_CUBIC): 
+	# take minimum width 
+	w_min = min(img.shape[1] 
+				for img in img_list) 
+	
+	# resizing images 
+	im_list_resize = [cv2.resize(img, 
+					(w_min, int(img.shape[0] * w_min / img.shape[1])), 
+								interpolation = interpolation) 
+					for img in img_list] 
+	# return final image 
+	return cv2.vconcat(im_list_resize) 
+
+# function calling 
+# img_v_resize = vconcat_resize([img1, img2, img1]) 
+
+# # show the output image 
+# cv2.imwrite('vconcat_resize.jpg', img_v_resize) 
+
+#%%
+
+#%% function calling 
+img_h_resize = merge_imgs([images[10], images[2], images[13]], merge_type="vertical") 
+
+plt.imshow(img_h_resize)
+
+#%%
+img_h_resize.shape
+
+
+#%% show the Output image 
+cv2.imshow('hconcat_resize.jpg', img_h_resize) 
+
+
