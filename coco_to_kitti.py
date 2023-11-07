@@ -2,7 +2,7 @@
 #%%
 from cluster_utils import coco_annotation_to_df
 import os
-from argparse import Argument
+import argparse 
 
                     
 def convert_coco_to_kitti(output_dir, coco_file_path: str):
@@ -12,7 +12,8 @@ def convert_coco_to_kitti(output_dir, coco_file_path: str):
         img_df = annot_df[annot_df['file_name']==img]
         ann_ids = img_df['id_annotation'].values
         img_name_without_ext = img.split('.')[0]
-        with open(output_dir + img_name_without_ext + '.txt','w') as label_file:
+        output_file = os.path.join(output_dir, img_name_without_ext)
+        with open(output_file + '.txt','w') as label_file:
             for ann_id in ann_ids:
                 ann_df = img_df[img_df['id_annotation']==ann_id]
                 bbox = ann_df['bbox'].tolist()[0] #ann_df['bbox'][0]#.values 
@@ -30,15 +31,16 @@ def convert_coco_to_kitti(output_dir, coco_file_path: str):
             
 
 if __name__ == '__main__':
-    args = Argument(description="A helper for converting coco to kitti")
-    args.add_argument("--output", required=True,
+    parser = argparse.ArgumentParser(description="A helper for converting coco to kitti")
+    parser.add_argument("--output_dir", required=True,
                       type=str,
                       help="Output directory to write kitti labels to")
-    args.add_argument("--coco_file_path", required=True,
+    parser.add_argument("--coco_file_path", required=True,
                       type=str,
                       help="Path to coco annotation file."
                       )
     
+    args = parser.parse_args()
     convert_coco_to_kitti(output_dir=args.output_dir, coco_file_path=args.coco_file_path)
         
 # %%
