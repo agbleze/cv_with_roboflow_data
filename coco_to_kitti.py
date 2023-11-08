@@ -3,11 +3,18 @@
 from cluster_utils import coco_annotation_to_df
 import os
 import argparse 
+import inspect
+
+
+#%%
 
                     
-def convert_coco_to_kitti(output_dir, coco_file_path: str):
+def convert_coco_to_kitti(output_dir, coco_file_path, *args, **kwargs):#(output_dir, coco_file_path: str):
+    coco_df_params = inspect.signature(coco_annotation_to_df).parameters.keys()
+    filtered_args = {k: v for k, v in zip(coco_df_params, args) if k in coco_df_params}
+    print(filtered_args)
     os.makedirs(output_dir, exist_ok=True)
-    annot_df = coco_annotation_to_df(coco_file_path)                    
+    annot_df = coco_annotation_to_df(**filtered_args)#(coco_file_path)                    
     for img in annot_df['file_name'].unique():
         img_df = annot_df[annot_df['file_name']==img]
         ann_ids = img_df['id_annotation'].values
@@ -41,6 +48,25 @@ if __name__ == '__main__':
                       )
     
     args = parser.parse_args()
-    convert_coco_to_kitti(output_dir=args.output_dir, coco_file_path=args.coco_file_path)
+    convert_coco_to_kitti(output_dir=args.output_dir, 
+                          coco_file_path=args.coco_file_path)
         
+# %%
+from inspect import signature
+def foo(a, *, b:int, **kwargs):
+    pass
+
+sig = signature(foo)
+
+str(sig)
+
+#%%
+str(sig.parameters['b'])
+
+
+sig.parameters['b'].annotation
+
+#%%
+for i in sig.parameters.keys():
+    print(i)
 # %%
