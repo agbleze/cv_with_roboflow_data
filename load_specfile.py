@@ -78,59 +78,186 @@ if type(nv_file["training_config"]) == dict:
     first_cl = [f"{key}: {train_dict[key]}\n" for key in train_dict.keys() 
                 if type(train_dict[key]) != dict
                 ]
-    nest_cl = [f"""classifier_regr_std {{
-               "key": {item[0]}
-               "value": {item[1]}
-               }}
-               """
-               for item in train_dict["classifier_regr_std"].items()
+    # nest_cl = [f"""classifier_regr_std {{
+    #            "key": {item[0]}
+    #            "value": {item[1]}
+    #            }}
+    #            """
+    #            for item in train_dict["classifier_regr_std"].items()
 
                
-                #for key in train_dict.keys() 
-                #if (type(train_dict[key]) == dict) and (train_dict.keys() == "classifier_regr_std")
-                ]
+    #             #for key in train_dict.keys() 
+    #             #if (type(train_dict[key]) == dict) and (train_dict.keys() == "classifier_regr_std")
+    #             ]
+    
+    # ls_list = []
+    for key in train_dict.keys():
+        if type(train_dict[key]) == dict:
+            n_dict = train_dict[key]
+            for key_s in n_dict.keys():
+                if type(n_dict[key_s]) != dict:
+                    if key_s in ["x", "y", "w", "h"]:
+                        n_dict_items = train_dict[key].items()
+                        sep_list = [f"""\n{key} {{\n
+                                    "key": {n_dict_item[0]}
+                                    "value": {n_dict_item[1]}
+                                    }}
+                                    """#.strip()
+                                    for n_dict_item in n_dict_items
+                                    ]
+                        sep_list_fr = "".join(sep_list)
+                    else:
+                        n_dict_items = train_dict[key].items()
+                        all_items_n = [f"{n_dict_item[0]}: {n_dict_item[1]}\n" for n_dict_item in n_dict_items]
+                        all_items_n_fr = "".join(all_items_n)
+                        all_items_fn = f"\n{key} {{\n {all_items_n_fr} }}"
+        #ls_list.append(all_items_fn)
+                        
+                        
+        
     each_item_nested = []
-    d_item_nested = []
+    #d_item_nested = []
     more_nested_list = []
     for keys in train_dict.keys():
+        #if (type(train_dict[keys]))!=dict:
+        #    pass
         if (type(train_dict[keys]))==dict: 
             sec_train_dict = train_dict[keys]
             for key_c in sec_train_dict.keys():
                 if type(sec_train_dict[key_c]) == dict:
                     sec_items = sec_train_dict[key_c].items()
-                    print(sec_items)
+                    #print(sec_items)
+                    #for item in sec_items:
+                    key_c_list = []
                     for item in sec_items:
                         
                         if type(item[1]) != list:
                             nested_item= f"{item[0]}: {item[1]}\n"#.strip()
-                            each_item_nested.append(nested_item)
+                            key_c_list.append(nested_item)
+                            #each_item_nested.append(nested_item)
                         elif type(item[1]) == list:
-                            
+                            #nnested_list_item = []
                             for i in range(len(item[1])):
                                 nnested_item = f"{item[0]}: {item[1][i]}\n"
-                                each_item_nested.append(nnested_item)
+                                #each_item_nested.append(nnested_item)
+                                #nnested_list_item.append(nnested_item)
+                                key_c_list.append(nnested_item)
+                    #each_item_nested.extend(key_c_list)
                                 
-            format_each_item_nested = "".join(each_item_nested)#.strip()
-            more_nested = f"""{keys}{{\n
-                {key_c}{{\n
-                {format_each_item_nested}
-                }}
-            }}\n"""#.strip() 
-            more_nested_list.append(more_nested)      
-    
-    more_nested_list_set = "".join(more_nested_list)
+            format_each_item_nested = "".join(key_c_list)#.strip()
+            if keys not in ['classifier_regr_std', 'regularizer']:
+                more_nested = f"""{keys}{{\n
+                    {key_c}{{\n
+                    {format_each_item_nested}
+                    }}
+                }}\n"""#.strip() 
+                more_nested_list.append(more_nested)      
+
+                more_nested_list_set = "".join(more_nested_list)
                     
-            
+    first_cl_set = "".join(first_cl)       
     nest_set = "".join(nest_cl)#.strip()
     
     training_set = f"""training_config {{\n
-                    {"".join(first_cl)}
-                    {nest_set}
+                    {first_cl_set}
+                    {sep_list_fr}
+                    {all_items_fn}
                     {more_nested_list_set}
+                    
                     }}
                     """
     print(training_set)
+    print("\n \n")
+    #print(ls_list)
+    #print(first_cl_set)
+    #print("nested_set \n")
     #print(nest_set)
+    #print("\n more nested")
+    #print(more_nested_list_set)
+    #print(nest_set)
+
+
+
+#%% ##########   model_config   ###############
+from collections import Iterable
+model_dict = nv_file["model_config"]
+if type(model_dict) == dict:
+    for key in model_dict.keys():
+        if type(model_dict[key]) != dict:
+            model_items = model_dict.items()
+            base_list = []
+            for item in model_items:
+                if (not isinstance(item[1], list)) and (not isinstance(item[1], dict)):
+                    if isinstance(item[1], str):
+                      base_pair = f"\n{item[0]}: '{item[1]}' \n"  
+                    base_pair = f"\n{item[0]}: {item[1]} \n"
+                    base_list.append(base_pair)
+                elif isinstance(item[1], list):
+                    for i in range(len(item[1])):
+                                base_pair_nested = f"{item[0]}: {item[1][i]}\n"
+                                #each_item_nested.append(nnested_item)
+                                #nnested_list_item.append(nnested_item)
+                                base_list.append(base_pair_nested)
+    base_fr = "".join(base_list)
+    
+    ##### work on second order dict   
+    for key in model_dict.keys():
+        if isinstance(model_dict[key], dict):
+            #dict_sec = model_dict[key]
+            #for key_sec in dict_sec.keys():
+            if key == "input_image_config":
+                img_config_dict = model_dict["input_image_config"]
+                img_config_items = img_config_dict.items()
+                #for item in img_config_items:
+                    #if not isinstance(item[1], dict):
+                it_list = [f"\n{item[0]}: {item[1]}\n" 
+                            for item in img_config_items 
+                            if not isinstance(item[1], dict)
+                            ]
+                it_fr = "".join(it_list)
+                if isinstance(item[1], dict):
+                    if item[0] != "image_channel_mean":
+                        #item_dict_item_list = []
+                        item_dict_items = item[1].items()
+                        item_dict_item_list = [f"{itm[0]}: {itm[1]}\n" for itm in item_dict_items]
+                        item_dict_item_fr = "".join(item_dict_item_list)
+                        it_frstr = f"""{item[0]}{{\n
+                        {item_dict_item_fr}
+                        }}
+                        """
+                    elif item[0] == "image_channel_mean":
+                        img_chn_it = item[1].items()
+                        img_chn_item_list = [f"""{item[0]}{{\n
+                            key: '{img_it[0]}'\n
+                            value: {img_it[1]}
+                            }}\n""" for img_it in img_chn_it
+                            ]
+                        img_chn_item_fr = "".join(img_chn_item_list)
+            
+                input_img_config = f"""{key} {{\n
+                {it_fr}
+                {it_frstr}
+                {img_chn_item_fr}
+                    }}"""
+                                 
+                    
+            
+        
+    # model_first_cl = [f"\n{key}: {model_dict[key]}\n" for key in model_dict.keys() 
+    #             if type(model_dict[key]) != dict
+    #             ]
+    # model_first_cl_set = "".join(model_first_cl)
+    
+    model_set = f"""model_config {{
+    {base_fr}
+    {input_img_config}
+                    
+                    }}
+                    """
+    print(model_set)
+
+
+
 
 
 #%%
