@@ -239,7 +239,50 @@ if type(model_dict) == dict:
                 {it_frstr}
                 {img_chn_item_fr}
                     }}"""
-                                 
+                    
+        for key in model_dict.keys():
+            if isinstance(model_dict[key], dict):
+                items = model_dict[key].items()
+                nested_list_in_dict = []
+                #if isinstance(item[1], list):
+                    
+                for item in items:
+                    if not isinstance(item[1], list):
+                        key_val_pair_in_dict = [f"\n{item[0]}: {item[1]}\n" for item in items]
+                        key_val_pair_in_dict_fr = "".join(key_val_pair_in_dict) 
+                    key_val_pair_in_dict_output = f"""\n{key} {{\n
+                    {key_val_pair_in_dict_fr}
+                    }}"""
+                        
+        #for key in model_dict.keys():
+            # if isinstance(model_dict[key], dict):
+            #     items = model_dict[key].items()
+            #     nested_list_in_dict = [] 
+            #     for item in items:               
+                    if isinstance(item[1], list):
+                        for i in range(len(item[1])):
+                            key_list_pair = f"\n{item[0]}: {item[1][i]}\n" 
+                            #key_list_pair_ap = 
+                            nested_list_in_dict.append(key_list_pair)
+                            #print(key_list_pair_ap)
+                        key_list_pair_fr = "".join(nested_list_in_dict)
+                        key_list_pair_output = f"""\n{key} {{\n
+                        {key_list_pair_fr}
+                        }}"""
+                        #key_list_pair_fr_ = f"""{}"""
+                        
+                            #each_item_nested.append(nnested_item)
+                            #nnested_list_item.append(nnested_item)
+                            #nested_list_in_dict.append(key_list_pair)
+            # else:
+            #     key_val_pair_in_dict = [f"\n{item[0]}: {item[1]}\n" for item in items]
+            #     key_val_pair_in_dict_fr = "".join(key_val_pair_in_dict)  
+                #nested_list_in_dict.append(key_val_pair_in_dict_fr) 
+                    
+                #nested_list_in_dict_fr = "".join(nested_list_in_dict)   
+        key_val_list_in_dict_fr = f"""{key_val_pair_in_dict_output}
+        {key_list_pair_output}
+        """          
                     
             
         
@@ -251,14 +294,15 @@ if type(model_dict) == dict:
     model_set = f"""model_config {{
     {base_fr}
     {input_img_config}
+    {key_val_list_in_dict_fr}
                     
-                    }}
+    }}
                     """
     print(model_set)
 
 
 
-
+##############  TO DO: parse  dataset_config  #############
 
 #%%
 nv_file = data.get("nvidia_specfile")
