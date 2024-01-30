@@ -303,6 +303,100 @@ if type(model_dict) == dict:
 
 
 ##############  TO DO: parse  dataset_config  #############
+#%%  dataset_config
+
+data_dict = nv_file["dataset_config"]
+
+if type(data_dict) == dict:
+    for key in data_dict.keys():
+        if not isinstance(data_dict[key], dict):
+            data_items = data_dict.items()
+            data_base_list = []
+            for item in data_items:
+                if (not isinstance(item[1], list)) and (not isinstance(item[1], dict)):
+                    if isinstance(item[1], str):
+                      data_base_pair = f"\n{item[0]}: '{item[1]}' \n"  
+                    data_base_pair = f"\n{item[0]}: {item[1]} \n"
+                    data_base_list.append(data_base_list)
+                elif isinstance(item[1], list):
+                    for i in range(len(item[1])):
+                                data_base_pair_nested = f"{item[0]}: {item[1][i]}\n"
+                                data_base_list.append(data_base_pair_nested)
+    data_base_fr = "".join(data_base_list)
+    print(data_base_fr)
+
+
+
+#%%
+for item in data_dict.items():
+    #print(data_dict[key])
+    first_obj_list = []
+    if not isinstance(item[1], dict):
+        first_fr = f"\n{item[0]}: {item[1]}\n"
+        print(data_dict.items())
+        #f"{key}: "
+    
+
+#%%
+fir_obj = [f"\n{item[0]}: {item[1]}\n" for item in data_dict.items() if not isinstance(item[1], dict)]
+first_output = "".join(fir_obj)
+
+for item in data_dict.items():
+    if isinstance(item[1], dict):
+        if item[0] != "target_class_mapping":
+            #item_dict_item_list = []
+            data_dict_items = item[1].items()
+            data_dict_item_list = [f"\n{itm[0]}: {itm[1]}\n" for itm in data_dict_items]
+            data_dict_item_fr = "".join(data_dict_item_list)
+            it_frstr = f"""{item[0]}: {{\n
+            {data_dict_item_fr}
+            }}
+            """
+        elif item[0] == "target_class_mapping":
+            target_class_it = item[1].items()
+            target_class_item_list = [f"""\n{item[0]}{{\n
+            key: '{target_it[0]}'\n
+            value: '{target_it[1]}'
+            }}\n""" for target_it in target_class_it
+                ]
+            target_class_item_fr = "".join(target_class_item_list)
+
+# input_img_config = f"""{key} {{\n
+# {it_fr}
+# {it_frstr}
+# {target_class_item_fr}
+#     }}"""
+        
+dataset_config = f"""dataset_config {{\n
+{first_output}
+{it_frstr}
+{target_class_item_fr}
+}}"""
+print(dataset_config)
+
+
+
+#%%
+######## augmentation_config ##########
+for key in nv_file.keys():
+    if key == "augmentation_config":
+        augment_dict = nv_file["augmentation_config"]
+        augment_dict_items = augment_dict.items()
+        aug_itm_list = []
+        for item in augment_dict_items:
+            if isinstance(item[1], dict):
+                aug_it_list = [f"{aug_it[0]}: {aug_it[1]}\n" 
+                               for aug_it in item[1].items()
+                               ]
+                aug_it_fr = "".join(aug_it_list)
+                aug_itm = f"{item[0]} {{\n {aug_it_fr} \n}}\n"
+                aug_itm_list.append(aug_itm)
+        aug_conf_fr = "".join(aug_itm_list)
+        aug_config_output = f"augmentation_config {{\n {aug_conf_fr} }}"
+        print(aug_config_output)
+                
+        
+
 
 #%%
 nv_file = data.get("nvidia_specfile")
