@@ -385,11 +385,12 @@ def generate_model_config(json_file, nvidia_specfile_key: str ="nvidia_specfile"
                         """
                         )
     model_dict = nv_file[config_type]
+    base_list = []
     if isinstance(model_dict, dict):
         for key in model_dict.keys():
             if not isinstance(model_dict, dict):
                 model_items = model_dict.items()
-                base_list = []
+                #base_list = []
                 for item in model_items:
                     if (not isinstance(item[1], list)) and (not isinstance(item[1], dict)):
                         if isinstance(item[1], str):
@@ -444,11 +445,11 @@ def generate_model_config(json_file, nvidia_specfile_key: str ="nvidia_specfile"
                                 nested_list_in_dict.append(key_list_pair)
                             key_list_pair_fr = "".join(nested_list_in_dict)
                             key_list_pair_output = f"""\n{key} {{\n {key_list_pair_fr} \n}}"""  
-                key_val_list_in_dict_fr = f"""{key_val_pair_in_dict_output} \n{key_list_pair_output}"""          
+            key_val_list_in_dict_fr = f"""{key_val_pair_in_dict_output} \n{key_list_pair_output}"""          
         
-                model_set = f"""{config_type} {{{base_fr}\n{input_img_config}\n{key_val_list_in_dict_fr} \n}}"""
-                print(model_set)
-                return model_set
+        model_set = f"""{config_type} {{{base_fr}\n{input_img_config}\n{key_val_list_in_dict_fr} \n}}"""
+        print(model_set)
+        return model_set
 
 #%%  #########  training_config   ###############
 def generate_training_config(json_file, nvidia_specfile_key: str ="nvidia_specfile",
