@@ -264,7 +264,7 @@ plot_images(test_data, show_labels=True)
 We can pass images through a neural network to generate vector embeddings via its hidden layer representation. Here we use a `resnet50` network from [timm](https://timm.fast.ai/), which has been pretrained on a large corpus of other images. Note that cleanlab's outlier detection can be applied to numeric feature embeddings generated from any model (or to the raw data features if they are already numeric vectors). Outlier detection works best with feature vectors whose values along each dimension are of a similar scale.
 """
 
-# Generates 2048-dimensional feature embeddings from images
+#%% Generates 2048-dimensional feature embeddings from images
 def embed_images(model, dataloader):
     feature_embeddings = []
     for data in dataloader:
@@ -294,7 +294,7 @@ print(f'Test embeddings pooled shape: {test_feature_embeddings.shape}')
 
 Fitting cleanlab's ``OutOfDistribution`` class on ``feature_embeddings`` will find any naturally occurring outliers in a given dataset. These examples are atypical images that look strange or different from the majority of examples in the dataset. In our case, these correspond to odd-looking images of animals that do not resemble typical animals depicted in **cifar10**. This method produces a score in [0,1] for each example, where lower values correspond to more atypical examples (more likely out-of-distribution).
 """
-
+#%%
 ood = OutOfDistribution()
 train_ood_features_scores = ood.fit_score(features=train_feature_embeddings)
 
