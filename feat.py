@@ -1,6 +1,6 @@
 
 #%%
-from typing import NamedTuple
+from typing import NamedTuple, Union, Tuple, List
 import tensorflow as tf
 import torch
 from PIL import Image
@@ -12,8 +12,10 @@ from typing import List
 from glob import glob
 import os
 from multiprocessing import Process, Lock
-
-
+from tensorflow.keras.layers import Add
+import cv2
+from pycocotools.coco import COCO
+from tensorflow.keras.layers import Add
 
 
 #%%
@@ -125,7 +127,7 @@ class FeatureExtractor(object):
         image = tf.io.read_file(image_path)
         x = tf.image.decode_image(image, channels=img_shape[2])
         x = tf.image.resize(x, (img_shape[0], img_shape[1]))
-        x = tf.expand.dims(x, axis=0)
+        x = tf.expand_dims(x, axis=0)
         return x
     
     def get_images_features(self, img_property_set, feature_extractor=None,
@@ -163,31 +165,123 @@ class FeatureExtractor(object):
         img_property_set.features = features
         
         
-def get_imgs_and_extract_features_multiprocess(img_path, img_resize_width,
-                                               img_resize_height,
-                                               model_family, model_name,
-                                               img_normalization_weight,
-                                               seed, images_list, features_list, 
-                                               #model_artefacts_dict, #lock
-                                               ):
-    #lock.acquire()
+def get_objects(imgname, coco, img_dir):
+    val = [obj for obj in coco.imgs.values() if obj["file_name"] == imgname][0]
+    img_id = val['id']
+    img_info = coco.loadImgs(img_id)[0]
+    img_path = os.path.join(img_dir, imgname)
+    image = cv2.imread(img_path)
+
+    # Get annotation IDs for the image
+    ann_ids = coco.getAnnIds(imgIds=img_id)
+    anns = coco.loadAnns(ann_ids)
+    img_obj = []
+    for ann in anns:
+        segmentation = ann['segmentation']
+        mask = coco.annToMask(ann)
+
+        # Find contours
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            cropped_object = image[y:y+h, x:x+w]
+            img_obj.append(cropped_object)
+    return img_obj
+
+
+def get_object_features(obj_imgs, 
+                        img_resize_width,
+                        img_resize_height,
+                        model_family, model_name,
+                        img_normalization_weight,
+                        seed, #images_list, features_list, 
+                        #model_artefacts_dict, #lock
+                        ):
     feat_extract = FeatureExtractor(seed=seed, img_resize_width=img_resize_width,
                                     img_resize_height=img_resize_height, 
                                     model_family=model_family,
                                     model_name=model_name,
                                     img_normalization_weight=img_normalization_weight
                                     )
-    images_list = []
-    features_list = []
+    feature_list = []
+    for obj_img in obj_imgs:
+        channels = obj_img.shape[2]
+        Image.fromarray(obj_img).show()
+        img_tensor = tf.convert_to_tensor(obj_img)
+        img_resized = tf.image.resize_with_pad(image=img_tensor, target_height=img_resize_height, target_width=img_resize_width)
+        img_for_infer = tf.expand_dims(img_resized, axis=0)
+        feat_extract.set_seed_consistently()
+        model, preprocess = feat_extract.load_model_and_preprocess_func()
+        feature_extractor = feat_extract.get_feature_extractor(model)
+        feature = feat_extract.extract_features(img_for_infer, feature_extractor, preprocess)
+        feature_list.append(feature)
+    
+    if len(feature_list) > 1:
+        print(f"len(feature_list): {len(feature_list)}")
+        feature = Add()(feature_list)#/len(feature_list)
+    else:
+        feature = feature_list[0]
+    return feature
+
+
+def get_imgs_and_extract_features(img_path, img_resize_width,
+                                img_resize_height,
+                                model_family, model_name,
+                                img_normalization_weight,
+                                seed, #images_list, features_list, 
+                                #model_artefacts_dict, #lock
+                                ):
+    feat_extract = FeatureExtractor(seed=seed, img_resize_width=img_resize_width,
+                                    img_resize_height=img_resize_height, 
+                                    model_family=model_family,
+                                    model_name=model_name,
+                                    img_normalization_weight=img_normalization_weight
+                                    )
     feat_extract.set_seed_consistently()
-    #model = model_artefacts_dict['model']
-    #preprocess = model_artefacts_dict['preprocess']
     model, preprocess = feat_extract.load_model_and_preprocess_func()
     feature_extractor = feat_extract.get_feature_extractor(model)
     img = feat_extract.load_and_resize_image(img_path, img_resize_width, img_resize_height)
     img_for_infer = feat_extract.load_image_for_inference(img_path, feat_extract.image_shape)
     feature = feat_extract.extract_features(img_for_infer, feature_extractor, preprocess)
-    print(f"feature: {feature} \n")
+    return img, feature
+
+def extract_object_features_per_image(img_paths, coco_annotation_filepath)->Tuple[List, List]:
+    coco = COCO(coco_annotation_filepath)
+    obj_featlist = []
+    imgname_list = []
+    for img in img_paths:
+        imgname = os.path.basename(img)
+        objects = get_objects(imgname=imgname, coco=coco, img_dir=img_dirs)
+        features = get_object_features(obj_imgs=objects, seed=2024, img_resize_width=224,
+                                        img_resize_height=224,
+                                        model_family="efficientnet",
+                                        model_name="EfficientNetB0",
+                                        img_normalization_weight="imagenet",
+                                        )
+        obj_featlist.append(features)
+        imgname_list.append(imgname)
+    return imgname_list, obj_featlist
+
+def get_imgs_and_extract_features_multiprocess(img_path, img_resize_width,
+                                               img_resize_height,
+                                               model_family, model_name,
+                                               img_normalization_weight,
+                                               seed, images_list, features_list
+                                               ):
+    feat_extract = FeatureExtractor(seed=seed, img_resize_width=img_resize_width,
+                                    img_resize_height=img_resize_height, 
+                                    model_family=model_family,
+                                    model_name=model_name,
+                                    img_normalization_weight=img_normalization_weight
+                                    )
+    #images_list = []
+    #features_list = []
+    feat_extract.set_seed_consistently()
+    model, preprocess = feat_extract.load_model_and_preprocess_func()
+    feature_extractor = feat_extract.get_feature_extractor(model)
+    img = feat_extract.load_and_resize_image(img_path, img_resize_width, img_resize_height)
+    img_for_infer = feat_extract.load_image_for_inference(img_path, feat_extract.image_shape)
+    feature = feat_extract.extract_features(img_for_infer, feature_extractor, preprocess)
     images_list.append(img)
     features_list.append(feature)
     print(f"total imgs processed {len(images_list)}")
@@ -195,8 +289,7 @@ def get_imgs_and_extract_features_multiprocess(img_path, img_resize_width,
     #lock.release()
     return images_list, features_list
 
-
-
+#%%
 def img_feature_extraction_implementor(img_property_set,
                                        feature_extractor_class = None,
                                        seed=2024, img_resize_width=224,
@@ -205,57 +298,134 @@ def img_feature_extraction_implementor(img_property_set,
                                        model_name="EfficientNetB0",
                                        img_normalization_weight="imagenet",
                                        use_cropped_imgs=True,
+                                       multiprocess = False
                                        ):
+    
     img_paths = sorted(img_property_set.img_paths)
-    
-    manager = multiprocessing.Manager()
-    images_list = manager.list()
-    features_list = manager.list()
-    #model_artefacts_dict = manager.dict()
-    
-    image_shape=(img_resize_height, img_resize_width, 3)
-    
-    #model, preprocess = load_model_and_preprocess(input_shape=image_shape, model_family=model_family, 
-    #                                                model_name=model_name, 
-    #                                                weight=img_normalization_weight,
-    #                                                )
-    #model_artefacts_dict['model'] = model
-    #model_artefacts_dict['preprocess'] = preprocess
-    #print(type(model_artefacts_dict))
-    args_for_multiprocess = [(img_path, img_resize_width, img_resize_height,
-                              model_family, model_name, 
-                              img_normalization_weight, seed, images_list,
-                              features_list, #model_artefacts_dict, #lock
-                              )
-                             for img_path in img_paths
-                             ]
-    num_processes = multiprocessing.cpu_count()
-    
-    with multiprocessing.Pool(num_processes) as pool:
-    
-        print("waiting for multiprocess to finish")
-        results = pool.starmap(get_imgs_and_extract_features_multiprocess, args_for_multiprocess)
+    if multiprocess:
+        manager = multiprocessing.Manager()
+        images_list = manager.list()
+        features_list = manager.list()
+        image_shape=(img_resize_height, img_resize_width, 3)
+        args_for_multiprocess = [(img_path, img_resize_width, img_resize_height,
+                                model_family, model_name, 
+                                img_normalization_weight, seed, images_list,
+                                features_list,
+                                )
+                                for img_path in img_paths
+                                ]
+        num_processes = multiprocessing.cpu_count()
         
-    images_list_re, features_list_re = results
-    
-    img_property_set.imgs = list(images_list_re)
-    img_property_set.features = list(features_list_re)
-    
-    print(f"num of images: {len(img_property_set.imgs)}")
-    print(f"num of features: {len(img_property_set.features)}")
-    
+        with multiprocessing.Pool(num_processes) as pool:
+        
+            print("waiting for multiprocess to finish")
+            results = pool.starmap(get_imgs_and_extract_features_multiprocess, args_for_multiprocess)
+        print(f"results: {len(list(results))}")
+        images_list_re, features_list_re = results
+        
+        img_property_set.imgs = list(images_list_re)
+        img_property_set.features = list(features_list_re)
+        
+        print(f"num of images: {len(img_property_set.imgs)}")
+        print(f"num of features: {len(img_property_set.features)}")
+        
+        return img_property_set
+    else:
+        img_list, feature_list = [], []
+        for img_path in img_paths:
+            img, feature = get_imgs_and_extract_features(img_path=img_path, 
+                                                         img_resize_height=img_resize_height,
+                                                        img_resize_width=img_resize_width,
+                                                        model_family=model_family, 
+                                                        model_name=model_name,
+                                                        img_normalization_weight=img_normalization_weight,
+                                                        seed=seed
+                                                        )
+            img_list.append(img)
+            feature_list.append(feature)
+        img_property_set.imgs = img_list
+        img_property_set.features = feature_list
     return img_property_set
-    
-    
+        
 
-#%%
-img_dir = "C:/Users/agbji/Documents/codebase/cv_with_roboflow_data/field_crop_with_disease"
-img_paths_list = sorted(glob(f"{img_dir}/*"))   
-
-img_property_set = ImgPropertySetReturnType(img_paths=img_paths_list, img_names="xxx", total_num_imgs=100, max_num_clusters=4)
 
 if __name__ == '__main__':
     img_feature_extraction_implementor(img_property_set=img_property_set,
                                    use_cropped_imgs=False
                                    )
+    
+    
+    #%%
+    # Load COCO annotations
+    img_dirs = "cv_with_roboflow_data/tomato_fruit"
+    coco = COCO('cv_with_roboflow_data/coco_annotation_coco.json')
+
+
+    img_paths = glob(f"{img_dirs}/*")
+    obj_featlist = []
+    for img in img_paths:
+        imgname = os.path.basename(img)
+        objects = get_objects(imgname=imgname, coco=coco, img_dir=img_dirs)
+        features = get_object_features(obj_imgs=objects, seed=2024, img_resize_width=224,
+                            img_resize_height=224,
+                            model_family="efficientnet",
+                            model_name="EfficientNetB0",
+                            img_normalization_weight="imagenet",
+                            )
+        obj_featlist.append(features)
+        
+    #%%
+
+    obj_featlist[0] == obj_featlist[1]
+
+    #%%
+    obj_featlist[1]
+    #%%
+
+
+    image = cv2.imread(img_paths[0])
+
+    #%%
+    Image.fromarray(image)
+
+    img_tensor = tf.convert_to_tensor(image)
+
+    #%%
+    # TensorShape([1032, 774, 3])
+    img_resize_with_pad = tf.image.resize_with_pad(img_tensor, target_height=100, target_width=100)
+    #Image.fromarray(img_tensor)
+
+    tf.image.resize_with_pad()
+    img_array = img_resize_with_pad.numpy().astype(np.uint8)
+    Image.fromarray(img_array)
+
+    #%%
+    np.array(img_resize_with_pad).shape
+    #%%
+    image = tf.io.read_file(img_paths[0])
+    
+    #%%
+    img_dir = "cv_with_roboflow_data/field_crop_with_disease"
+
+    img_paths_list = sorted(glob(f"{img_dir}/*"))   
+
+    #%%
+    read_img_list, feat_list = [], []
+    for img in img_paths_list:
+        read_img, feat_ext = get_imgs_and_extract_features(img_path=img, 
+                                                        seed=2024, img_resize_width=224,
+                                                        img_resize_height=224,
+                                                        model_family="efficientnet",
+                                                        model_name="EfficientNetB0",
+                                                        img_normalization_weight="imagenet",
+                                                        )
+        read_img_list.append(read_img)
+        feat_list.append(feat_ext)
+
+
+    #%%
+    img_property_set = ImgPropertySetReturnType(img_paths=img_paths_list, img_names="xxx", total_num_imgs=100, max_num_clusters=4)
+
+
 # %%
+
