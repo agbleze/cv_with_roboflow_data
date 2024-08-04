@@ -158,3 +158,26 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+<<<<<<< HEAD
+=======
+
+
+
+images/
+model_save/
+*.avi
+*.zip
+*.sh
+*.txt
+*venv
+field_crop_with_disease/
+tomato_fruit/*
+*.jpg
+cv_with_roboflow_data/_Tomato-pest&diseases-1/*
+cv_with_roboflow_data/Tomato-pest&diseases-1/test/*
+cv_with_roboflow_data/subset_extract_folder/tomato_fruit/
+cv_with_roboflow_data/preprocess_assets/
+crop_objs/
+tomato_coco_annotation/
+*.json
+>>>>>>> remotes/origin/master

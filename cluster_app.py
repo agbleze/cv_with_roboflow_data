@@ -198,5 +198,9 @@ def dezrmine_click(n_clicks):
     
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     app.run(port=8010, debug=False, use_reloader=True)
+=======
+    app.run(port=8040, debug=False, use_reloader=True)
+>>>>>>> remotes/origin/master
 

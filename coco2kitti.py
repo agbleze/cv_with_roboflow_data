@@ -8,12 +8,23 @@ from pycocotools.coco import COCO
 from glob import glob
 from apply_coco2kitti import timing
 
+<<<<<<< HEAD
 annfile_train = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train/_annotations.coco.json"
 
 #%%
 train_folder = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train"
 
 train_imgs = glob(f"{train_folder}/*.jpg")
+=======
+#annfile_train = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train/_annotations.coco.json"
+
+annfile_train = "C:/Users/agbji/Documents/codebase/cv_with_roboflow_data/Tomato-pest&diseases-1/test/_annotations.coco.json"
+
+#%%
+#train_folder = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train"
+
+#train_imgs = glob(f"{train_folder}/*.jpg")
+>>>>>>> remotes/origin/master
 
 coco = COCO(annfile_train)
 
