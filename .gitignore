@@ -175,3 +175,4 @@ cv_with_roboflow_data/Tomato-pest&diseases-1/*
 cv_with_roboflow_data/Tomato-pest&diseases-1/test/*
 cv_with_roboflow_data/subset_extract_folder/tomato_fruit/
 cv_with_roboflow_data/preprocess_assets/
+crop_objs/
