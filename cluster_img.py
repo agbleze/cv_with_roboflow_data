@@ -34,10 +34,10 @@ fig.show()
 cl = Clustimage(method="pca")
 
 #%%
-train_img = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/train"
-valid_dir = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/Tomato-pest&diseases-1/valid"
+train_img = "cv_with_roboflow_data/Tomato-pest&diseases-1/train"
+test_dir = "cv_with_roboflow_data/Tomato-pest&diseases-1/test"
 
-subset_valid_dir = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subset_extract_folder/valid_subset"
+subset_valid_dir = "cv_with_roboflow_data/subset_extract_folder/valid_subset"
 #%%
 #valid_imgs_list = glob(f"{valid_dir}/*.jpg")[:20]
 
@@ -57,8 +57,14 @@ subset_valid_dir = "/Users/lin/Documents/python_venvs/cv_with_roboflow_data/subs
 #len(valid_imgs_list)
 
 #%%
+from glob import glob
 
-valid_transformed = cl.fit_transform(subset_valid_dir)
+
+
+images_dir = "images"
+glob(f"{images_dir}/*")
+#%%
+valid_transformed = cl.fit_transform(images_dir)
 
 valid_result_feat = valid_transformed['feat']
 
@@ -107,8 +113,13 @@ pd.DataFrame(valid_transformed)
 
 
 #%%
-subset_valid_raw = cl.import_data(subset_valid_dir)
+subset_valid_raw = cl.import_data(images_dir)
 
+#%%
+from PIL import Image
+
+#%%
+Image.fromarray(subset_valid_raw["img"])
 #%%
 subset_valid_extracted_feat = cl.extract_feat(subset_valid_raw)
 
@@ -119,9 +130,6 @@ tsne_mod = TSNE(n_components=3, random_state=2023)
 #%%
 
 tsne_3feat = tsne_mod.fit_transform(subset_valid_extracted_feat)
-
-#%%
-
 
 #%%
 subset_valid_embed = cl.embedding(subset_valid_extracted_feat)
@@ -156,7 +164,7 @@ valid_transformed
 
 
 #%%
-fig_img_cluster = cl.scatter(zoom=1, plt_all=True, figsize=(150,100))
+fig_img_cluster = cl.scatter(zoom=3, plt_all=True, figsize=(150,100))
 
 
 #%%

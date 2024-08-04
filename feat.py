@@ -16,8 +16,8 @@ from tensorflow.keras.layers import Add
 import cv2
 from pycocotools.coco import COCO
 from tensorflow.keras.layers import Add
-
-
+from clusteval import clusteval
+import pandas as pd
 #%%
 #os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -206,7 +206,7 @@ def get_object_features(obj_imgs,
     feature_list = []
     for obj_img in obj_imgs:
         channels = obj_img.shape[2]
-        Image.fromarray(obj_img).show()
+        #Image.fromarray(obj_img).show()
         img_tensor = tf.convert_to_tensor(obj_img)
         img_resized = tf.image.resize_with_pad(image=img_tensor, target_height=img_resize_height, target_width=img_resize_width)
         img_for_infer = tf.expand_dims(img_resized, axis=0)
@@ -348,17 +348,32 @@ def img_feature_extraction_implementor(img_property_set,
     return img_property_set
         
 
-
+#%%
 if __name__ == '__main__':
-    img_feature_extraction_implementor(img_property_set=img_property_set,
-                                   use_cropped_imgs=False
-                                   )
+    img_dir = "field_crop_with_disease"
+
+    img_paths_list = sorted(glob(f"{img_dir}/*"))
+    img_names = [os.path.basename(img) for img in img_paths_list]
+    img_property_set = ImgPropertySetReturnType(img_paths=img_paths_list, img_names=img_names, total_num_imgs=100, max_num_clusters=4)
+
+
+    img_property_set = img_feature_extraction_implementor(img_property_set=img_property_set,
+                                                        use_cropped_imgs=False
+                                                        )
+    
+    #%%
+    featarray = np.array(img_property_set.features)
+    ce = clusteval()
+    results = ce.fit(featarray)
+    clusters = results["labx"]
+    imgcluster_dict = {"image_names": img_property_set.img_names, "clusters": clusters}
+    imgclust_df = pd.DataFrame.from_dict(imgcluster_dict)
     
     
     #%%
     # Load COCO annotations
-    img_dirs = "cv_with_roboflow_data/tomato_fruit"
-    coco = COCO('cv_with_roboflow_data/coco_annotation_coco.json')
+    img_dirs = "tomato_fruit"
+    coco = COCO('coco_annotation_coco.json')
 
 
     img_paths = glob(f"{img_dirs}/*")
@@ -402,12 +417,7 @@ if __name__ == '__main__':
     #%%
     np.array(img_resize_with_pad).shape
     #%%
-    image = tf.io.read_file(img_paths[0])
-    
-    #%%
-    img_dir = "cv_with_roboflow_data/field_crop_with_disease"
-
-    img_paths_list = sorted(glob(f"{img_dir}/*"))   
+    image = tf.io.read_file(img_paths[0])   
 
     #%%
     read_img_list, feat_list = [], []
@@ -424,8 +434,6 @@ if __name__ == '__main__':
 
 
     #%%
-    img_property_set = ImgPropertySetReturnType(img_paths=img_paths_list, img_names="xxx", total_num_imgs=100, max_num_clusters=4)
-
-
+    
 # %%
 
