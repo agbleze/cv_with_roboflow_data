@@ -11,36 +11,6 @@ from feat import get_object_features
 #%% Load COCO annotations
 coco = COCO('/home/lin/codebase/cv_with_roboflow_data/coco_annotation_coco.json')
 
-#%% Get image IDs
-# objects_in_img = {}
-# img_ids = coco.getImgIds()
-# for img_id in img_ids:
-#     img_info = coco.loadImgs(img_id)[0]
-#     img_path = '/home/lin/codebase/cv_with_roboflow_data/tomato_fruit/' + img_info['file_name']
-#     image = cv2.imread(img_path)
-
-#     # Get annotation IDs for the image
-#     ann_ids = coco.getAnnIds(imgIds=img_id)
-#     anns = coco.loadAnns(ann_ids)
-#     img_obj = []
-#     for ann in anns:
-#         segmentation = ann['segmentation']
-#         mask = coco.annToMask(ann)
-
-#         # Find contours
-#         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#         for contour in contours:
-#             x, y, w, h = cv2.boundingRect(contour)
-#             cropped_object = image[y:y+h, x:x+w]
-#             img_obj.append(cropped_object)
-
-#             # Save or display the cropped object
-#             #cv2.imshow('Cropped Object', cropped_object)
-#             #cv2.waitKey(0)
-#             #cv2.destroyAllWindows()
-#         objects_in_img[img_id] = img_obj
-
-
 #%%
 import os
 def get_objects(imgname, coco, img_dir):
