@@ -8,6 +8,7 @@ from clusteval import clusteval
 import pandas as pd
 import json
 from feat import get_object_features
+from typing import Union, List, Dict
 #%% Load COCO annotations
 coco = COCO('/home/lin/codebase/cv_with_roboflow_data/coco_annotation_coco.json')
 
@@ -46,7 +47,7 @@ tomato_coco_path = "/home/lin/codebase/cv_with_roboflow_data/tomato_coco_annotat
 img_dir = "/home/lin/codebase/cv_with_roboflow_data/images"
 coco = COCO(annotation_file=tomato_coco_path)
 
-
+#%%
 import os
 import cv2
 import numpy as np
@@ -149,68 +150,71 @@ import os
 import cv2
 import numpy as np
 
-def paste_object(dest_img_path, cropped_object, min_x, min_y, max_x, max_y, resize_w=None, resize_h=None):
+def paste_object(dest_img_path, cropped_objects, min_x, min_y, max_x, max_y, resize_w=None, resize_h=None):
     # Load the destination image
     dest_image = cv2.imread(dest_img_path, cv2.IMREAD_UNCHANGED)
     dest_h, dest_w = dest_image.shape[:2]
 
+    if not isinstance(cropped_objects, list):
+        cropped_objects = [cropped_objects]
     # Calculate the position in the destination image
     x = int(min_x * dest_w)
     y = int(min_y * dest_h)
     max_x = int(max_x * dest_w)
     max_y = int(max_y * dest_h)
-
+    bboxes, segmentations = [], []
     # Resize the cropped object if resize dimensions are provided
-    if resize_w and resize_h:
-        obj_h, obj_w = cropped_object.shape[:2]
-        aspect_ratio = obj_w / obj_h
-        if resize_w / resize_h > aspect_ratio:
-            resize_w = int(resize_h * aspect_ratio)
+    for cropped_object in cropped_objects:
+        if resize_w and resize_h:
+            obj_h, obj_w = cropped_object.shape[:2]
+            aspect_ratio = obj_w / obj_h
+            if resize_w / resize_h > aspect_ratio:
+                resize_w = int(resize_h * aspect_ratio)
+            else:
+                resize_h = int(resize_w / aspect_ratio)
+            resized_object = cv2.resize(cropped_object, (resize_w, resize_h), interpolation=cv2.INTER_AREA)
         else:
-            resize_h = int(resize_w / aspect_ratio)
-        resized_object = cv2.resize(cropped_object, (resize_w, resize_h), interpolation=cv2.INTER_AREA)
-    else:
-        resized_object = cropped_object
+            resized_object = cropped_object
 
-    # Ensure the resized object fits within the specified area
-    obj_h, obj_w = resized_object.shape[:2]
-    if obj_w > (max_x - x) or obj_h > (max_y - y):
-        scale_x = (max_x - x) / obj_w
-        scale_y = (max_y - y) / obj_h
-        scale = min(scale_x, scale_y)
-        new_w = int(obj_w * scale)
-        new_h = int(obj_h * scale)
-        resized_object = cv2.resize(resized_object, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        # Ensure the resized object fits within the specified area
+        obj_h, obj_w = resized_object.shape[:2]
+        if obj_w > (max_x - x) or obj_h > (max_y - y):
+            scale_x = (max_x - x) / obj_w
+            scale_y = (max_y - y) / obj_h
+            scale = min(scale_x, scale_y)
+            new_w = int(obj_w * scale)
+            new_h = int(obj_h * scale)
+            resized_object = cv2.resize(resized_object, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    # Create a mask for the resized object
-    mask = resized_object[:, :, 3]
-    mask_inv = cv2.bitwise_not(mask)
-    resized_object = resized_object[:, :, :3]
+        # Create a mask for the resized object
+        mask = resized_object[:, :, 3]
+        mask_inv = cv2.bitwise_not(mask)
+        resized_object = resized_object[:, :, :3]
 
-    # Define the region of interest (ROI) in the destination image
-    roi = dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]]
+        # Define the region of interest (ROI) in the destination image
+        roi = dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]]
 
-    # Black-out the area of the object in the ROI
-    img_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
+        # Black-out the area of the object in the ROI
+        img_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
 
-    # Take only region of the object from the object image
-    obj_fg = cv2.bitwise_and(resized_object, resized_object, mask=mask)
+        # Take only region of the object from the object image
+        obj_fg = cv2.bitwise_and(resized_object, resized_object, mask=mask)
 
-    # Put the object in the ROI and modify the destination image
-    dst = cv2.add(img_bg, obj_fg)
-    dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]] = dst
+        # Put the object in the ROI and modify the destination image
+        dst = cv2.add(img_bg, obj_fg)
+        dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]] = dst
 
-    # Calculate the bounding box
-    bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
-
-    # Calculate the segmentation
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    segmentation = []
-    for contour in contours:
-        contour = contour.flatten().tolist()
-        segmentation.append(contour)
-
-    return dest_image, bbox, segmentation
+        # Calculate the bounding box
+        bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
+        # Calculate the segmentation
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        segmentation = []
+        for contour in contours:
+            contour = contour.flatten().tolist()
+            segmentation.append(contour)
+        bboxes.append(bbox)
+        segmentations.append(segmentation)
+    return dest_image, bboxes, segmentations
 
 def create_coco_annotation(image_id, bbox, segmentation):
     annotation = {
@@ -238,6 +242,14 @@ cv2.imwrite('path_to_result_image.png', result_image)
 annotation = create_coco_annotation(image_id=1, bbox=bbox, segmentation=segmentation)
 export_coco_annotation(annotation, 'path_to_annotation.json')
 
+#%%
+#cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+import cv2
+cv2.rectangle(result_image, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (0, 255, 0), 2)
+
+
+#%%
+cv2.imwrite("/home/lin/codebase/cv_with_roboflow_data/viz_image.png", result_image)
 #%%
 
 # TODO object based clustering
@@ -329,18 +341,170 @@ img_feats = get_obj_features_per_img(img_objects=img_objs,
 cluster_df = object_based_cluster_images_from_cocoann(coco_annotation_file=tomato_coco_path,
                                                       img_dir=img_dir
                                                       )
+
+
 #%%
 
 
+import numpy as np
+from pycocotools import mask
+
+def annToMask(ann, height, width):
+    """
+    Convert annotation to binary mask.
+    
+    Parameters:
+    ann (dict): COCO annotation dictionary.
+    height (int): Height of the image.
+    width (int): Width of the image.
+    
+    Returns:
+    np.ndarray: Binary mask.
+    """
+    segmentation = ann['segmentation']
+    rle = mask.frPyObjects(segmentation, height, width)
+    binary_mask = mask.decode(rle)
+    
+    return binary_mask
+
+#%%   #### TODO copy-paste augmentation
+# get objects define from images -- cropping based on obj name
+#####  have option to limit number of objects to crop when number of images are large
+# cropped objects should be stored based on obj name separately
+#  ---- pasting of objects ----
+# sample from cropped obj list and paste into background obj
+#     write annotation after pasting. 
+# for each obj pasted give unique ann id and store in a list
+##### increase ann id based on stored list to ensure they are unique
+##### image_name: name of background image / image pasted into
+##### image_id: count of background image
+##### category and category id should be base on paste obj 
+#### centralize the annotation format and update it 
 
 
+#%%
+def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
+                       coco_ann_file: str
+                       ) -> Union[Dict[str,List], None]:
+    cropped_objs_collection = {obj: [] for obj in obj_names}
+    # get objs in image
+    with open(coco_ann_file, "r") as filepath:
+        coco_data = json.load(filepath)
+        
+    categories = coco_data["categories"]
+    category_id_to_name_map = {cat["id"]: cat["name"] for cat in categories}
+    category_name_to_id_map = {cat["name"]: cat["id"] for cat in categories}
+    
+    images = coco_data["images"]
+    image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
+    image_id = image_info["id"]
+    image_height = image_info["height"]
+    image_width = image_info["width"]
+    annotations = coco_data["annotations"]
+    img_ann = [ann_info for ann_info in annotations if ann_info["image_id"]==image_id]
+    img_catids = set(ann_info["category_id"] for ann_info in img_ann)
+    img_objnames = [category_id_to_name_map[catid] for catid in img_catids]
+    img_path = os.path.join(img_dir, imgname)
+    image = cv2.imread(img_path)
+    objs_to_crop = set(img_objnames).intersection(set(obj_names))
+    if objs_to_crop:
+        for objname in obj_names:
+            if objname in img_objnames:
+                obj_id = category_name_to_id_map[objname]
+                for ann in img_ann:
+                    if ann["category_id"] == obj_id:
+                        mask = annToMask(ann=ann, height=image_height, width=image_width)
+                        
+                        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        for contour in contours:
+                            x, y, w, h = cv2.boundingRect(contour)
+                            cropped_object = image[y:y+h, x:x+w]
+                            cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
+                            
+        return cropped_objs_collection
+    else:
+        return None
+
+#%% # pseudo code
+def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
+                      coco_ann_file
+                      ):
+    all_crops = {obj: [] for obj in object_to_cropped}
+    for img in imgnames_for_crop:
+        crop_obj = crop_obj_per_image(obj_names=object_to_cropped, 
+                                      imgname=img, 
+                                    img_dir=img_dir,
+                                    coco_ann_file=coco_ann_file
+                                    )
+        if crop_obj:
+            for crop in crop_obj:
+                crop_obj_maskslist = crop_obj[crop]
+                for crop_mask in crop_obj_maskslist:
+                    all_crops[crop] = all_crops[crop].append(crop_mask)
+                    
+    return all_crops
+            
+#%%
+# after collating all crops sample number of objects to be cropped
+# for each object and paste for each background image
+import random
+def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num, output_img_dir, save_coco_ann_as):
+    os.makedirs(output_img_dir, exist_ok=True)
+    coco_ann = {"categories": [], "images": [], "annotations": []}
+    ann_ids = []
+    for bkg_idx, bkg in enumerate(bkgs):
+        for obj_idx, obj in enumerate(objs_paste_num):
+            num_obj = objs_paste_num[obj]
+            objs_to_paste = all_crops[obj]
+            sampled_obj = random.sample(objs_to_paste, int(num_obj))
+            dest_img, bboxes, segmasks = paste_object(dest_img_path=bkg,
+                                                        cropped_objects=sampled_obj,
+                                                        )
+            file_name = os.path.basename(bkg)
+            img_path = os.path.join(output_img_dir, file_name)
+            cv2.imwrite(img_path, dest_img)
+            assert(len(bboxes) == len(segmasks)), f"bboxes and segmasks are not equal length"
+                       
+            image = cv2.imread(bkg)
+            img_height, img_width = image.shape[0], image.shape[1]
+            img_id = bkg_idx+1
+            
+            
+            image_info = {"file_name": file_name, "height": img_height, 
+                          "width": img_width, "id": img_id
+                          }
+            obj_category = {"id": obj_idx + 1, "name": obj}
+            coco_ann["categories"] = coco_ann["categories"].append(obj_category)
+            coco_ann["images"] = coco_ann["images"].append(image_info)
+            
+            for ann_ins in range(0, len(bboxes)):
+                bbox = bboxes[ann_ins]
+                segmask = segmasks[ann_ins]
+                ann_id = len(ann_ids) + 1
+                annotation = {"id": ann_id, "image_id": img_id, 
+                              "bbox": bbox,
+                              "segmentation": segmask
+                              } 
+                coco_ann["annotations"] = coco_ann["annotations"].append(annotation)
+    with open(save_coco_ann_as, "w") as filepath:
+        json.dump(coco_ann, filepath)            
+                
+            
+    
+
+
+
+            
+#%%
+
+exmdict = {"first": [], "second": []}
+
+if not exmdict:
+    print("empty")
+else:
+    print("occupied")
 # %%
-objects_in_img
+import random
+
+random.sample([1,2,3,4,9,2,3,3], 4)
 # %%
-for i in objects_in_img.keys():
-    img_objects = objects_in_img[i]
-    for obj in img_objects:
-        #print(f"image: {i}")
-        Image.fromarray(obj).show()
-# %%
-# 
