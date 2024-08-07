@@ -387,8 +387,9 @@ from typing import Union
 def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
                        coco_ann_file: str
                        ) -> Union[Dict[str,List], None]:
-    cropped_objs_collection = {obj: [] for obj in obj_names}
-    print(f"cropped_objs_collection: {cropped_objs_collection} \n")
+    #cropped_objs_collection = {obj: [] for obj in obj_names}
+    #print(f"cropped_objs_collection: {cropped_objs_collection} \n")
+    cropped_objs_collection = {}
     # get objs in image
     with open(coco_ann_file, "r") as filepath:
         coco_data = json.load(filepath)
@@ -412,6 +413,7 @@ def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
     if objs_to_crop:
         for objname in obj_names:
             print(f"objname: {objname} \n")
+            object_masks = []
             if objname in img_objnames:
                 obj_id = category_name_to_id_map[objname]
                 for ann in img_ann:
@@ -422,9 +424,10 @@ def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
                         for contour in contours:
                             x, y, w, h = cv2.boundingRect(contour)
                             cropped_object = image[y:y+h, x:x+w]
-                            print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
-                            cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
-                            
+                            object_masks.append(cropped_object)
+                            #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
+                            #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
+            cropped_objs_collection[objname] = object_masks                
         return cropped_objs_collection
     else:
         return None
