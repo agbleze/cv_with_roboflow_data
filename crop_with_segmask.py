@@ -383,10 +383,12 @@ def annToMask(ann, height, width):
 
 
 #%%
+from typing import Union
 def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
                        coco_ann_file: str
                        ) -> Union[Dict[str,List], None]:
     cropped_objs_collection = {obj: [] for obj in obj_names}
+    print(f"cropped_objs_collection: {cropped_objs_collection} \n")
     # get objs in image
     with open(coco_ann_file, "r") as filepath:
         coco_data = json.load(filepath)
@@ -409,6 +411,7 @@ def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
     objs_to_crop = set(img_objnames).intersection(set(obj_names))
     if objs_to_crop:
         for objname in obj_names:
+            print(f"objname: {objname} \n")
             if objname in img_objnames:
                 obj_id = category_name_to_id_map[objname]
                 for ann in img_ann:
@@ -419,11 +422,22 @@ def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
                         for contour in contours:
                             x, y, w, h = cv2.boundingRect(contour)
                             cropped_object = image[y:y+h, x:x+w]
+                            print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
                             cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
                             
         return cropped_objs_collection
     else:
         return None
+
+#%%
+coco_ann_path = "/home/lin/codebase/cv_with_roboflow_data/tomato_coco_annotation/annotations/instances_default.json"
+img_dir= "/home/lin/codebase/cv_with_roboflow_data/images"
+imgname = "10.jpg"
+objnames = ["ripe", "unripe", "flowers"]
+
+cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgname=imgname, img_dir=img_dir,
+                                        coco_ann_file=coco_ann_path
+                                        )
 
 #%% # pseudo code
 def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
