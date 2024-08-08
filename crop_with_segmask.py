@@ -442,30 +442,71 @@ cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgname=imgname, im
                                         coco_ann_file=coco_ann_path
                                         )
 
+#%%
+
+len(cropped_obj_collect["flowers"])
+
+#%%
+cropped_obj_collect["unripe"][2]
 #%% # pseudo code
 def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
                       coco_ann_file
                       ):
     all_crops = {obj: [] for obj in object_to_cropped}
+    allimg_crops = []
     for img in imgnames_for_crop:
         crop_obj = crop_obj_per_image(obj_names=object_to_cropped, 
                                       imgname=img, 
                                     img_dir=img_dir,
                                     coco_ann_file=coco_ann_file
                                     )
+        allimg_crops.append(crop_obj)
+        
+    if allimg_crops:
+        for crop_res in allimg_crops:
+            ######  CONTINUE FROM HERE ##############
+        
+        
         if crop_obj:
             for crop in crop_obj:
+                #print(f"{crop}: {len(crop_obj[crop])} \n")
                 crop_obj_maskslist = crop_obj[crop]
                 for crop_mask in crop_obj_maskslist:
-                    all_crops[crop] = all_crops[crop].append(crop_mask)
+                    if all_crops[crop] is None:
+                        all_crops[crop] = [crop_mask]
+                        print(f"In none")
+                    else:
+                        all_crops[crop] = all_crops[crop].append(crop_mask)
+                        print(f"outside none")
                     
     return all_crops
-            
+
+
 #%%
-# after collating all crops sample number of objects to be cropped
+
+imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
+
+all_crop_objects = collate_all_crops(object_to_cropped=objnames, imgnames_for_crop=imgnames_for_cropping,
+                                    img_dir=img_dir, coco_ann_file=coco_ann_path
+                                    )
+
+
+#%%
+
+len(all_crop_objects["unripe"])
+#%%
+for obj in all_crop_objects:
+    obj_crops = all_crop_objects[obj]
+    if obj_crops is not None:
+        for obj_crop in obj_crops:
+            print(f"obj: {obj}")
+            Image.fromarray(obj_crop).show()
+         
+#%%
+# after collating all crops, sample number of objects to be cropped
 # for each object and paste for each background image
 import random
-def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num, output_img_dir, save_coco_ann_as):
+def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, save_coco_ann_as):
     os.makedirs(output_img_dir, exist_ok=True)
     coco_ann = {"categories": [], "images": [], "annotations": []}
     ann_ids = []
@@ -507,8 +548,20 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num, output_img_dir, save_co
         json.dump(coco_ann, filepath)            
                 
             
-    
+#%%
+bkgs = ["/home/lin/codebase/cv_with_roboflow_data/images/1859.jpg",
+        "/home/lin/codebase/cv_with_roboflow_data/images/1668.jpg",
+        "/home/lin/codebase/cv_with_roboflow_data/images/1613.jpg",
+        "/home/lin/codebase/cv_with_roboflow_data/images/1541.jpg",
+        "/home/lin/codebase/cv_with_roboflow_data/images/1892.jpg"
+        ]
 
+obj_paste_num = {"ripe": 1, "unripe": 1}    
+paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
+                    objs_paste_num=obj_paste_num,
+                    output_img_dir="pasted_output_dir",
+                    save_coco_ann_as="cpaug.json"
+                    )
 
 
             
@@ -516,7 +569,7 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num, output_img_dir, save_co
 
 exmdict = {"first": [], "second": []}
 
-if not exmdict:
+if not exmdict["first"]:
     print("empty")
 else:
     print("occupied")
