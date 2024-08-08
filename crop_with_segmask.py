@@ -384,7 +384,7 @@ def annToMask(ann, height, width):
 
 #%%
 from typing import Union
-def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
+def crop_obj_per_image(obj_names: list, imgnames: Union[str, List], img_dir,
                        coco_ann_file: str
                        ) -> Union[Dict[str,List], None]:
     #cropped_objs_collection = {obj: [] for obj in obj_names}
@@ -398,39 +398,49 @@ def crop_obj_per_image(obj_names: list, imgname: str, img_dir,
     category_id_to_name_map = {cat["id"]: cat["name"] for cat in categories}
     category_name_to_id_map = {cat["name"]: cat["id"] for cat in categories}
     
+    if isinstance(imgnames, str):
+        imgnames = [imgnames]
     images = coco_data["images"]
-    image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
-    image_id = image_info["id"]
-    image_height = image_info["height"]
-    image_width = image_info["width"]
-    annotations = coco_data["annotations"]
-    img_ann = [ann_info for ann_info in annotations if ann_info["image_id"]==image_id]
-    img_catids = set(ann_info["category_id"] for ann_info in img_ann)
-    img_objnames = [category_id_to_name_map[catid] for catid in img_catids]
-    img_path = os.path.join(img_dir, imgname)
-    image = cv2.imread(img_path)
-    objs_to_crop = set(img_objnames).intersection(set(obj_names))
-    if objs_to_crop:
-        for objname in obj_names:
-            print(f"objname: {objname} \n")
-            object_masks = []
-            if objname in img_objnames:
-                obj_id = category_name_to_id_map[objname]
-                for ann in img_ann:
-                    if ann["category_id"] == obj_id:
-                        mask = annToMask(ann=ann, height=image_height, width=image_width)
-                        
-                        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        for contour in contours:
-                            x, y, w, h = cv2.boundingRect(contour)
-                            cropped_object = image[y:y+h, x:x+w]
-                            object_masks.append(cropped_object)
-                            #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
-                            #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
-            cropped_objs_collection[objname] = object_masks                
-        return cropped_objs_collection
-    else:
-        return None
+    for imgname in imgnames:
+        image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
+        image_id = image_info["id"]
+        image_height = image_info["height"]
+        image_width = image_info["width"]
+        annotations = coco_data["annotations"]
+        img_ann = [ann_info for ann_info in annotations if ann_info["image_id"]==image_id]
+        img_catids = set(ann_info["category_id"] for ann_info in img_ann)
+        img_objnames = [category_id_to_name_map[catid] for catid in img_catids]
+        img_path = os.path.join(img_dir, imgname)
+        image = cv2.imread(img_path)
+        objs_to_crop = set(img_objnames).intersection(set(obj_names))
+        if objs_to_crop:
+            for objname in obj_names:
+                print(f"objname: {objname} \n")
+                object_masks = []
+                if objname in img_objnames:
+                    obj_id = category_name_to_id_map[objname]
+                    for ann in img_ann:
+                        if ann["category_id"] == obj_id:
+                            mask = annToMask(ann=ann, height=image_height, width=image_width)
+                            
+                            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                            for contour in contours:
+                                x, y, w, h = cv2.boundingRect(contour)
+                                cropped_object = image[y:y+h, x:x+w]
+                                object_masks.append(cropped_object)
+                                #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
+                                #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
+                print(f"imgname: {imgname},  objname: {objname}")
+                if objname not in cropped_objs_collection.keys():
+                    cropped_objs_collection[objname] = object_masks
+                else:
+                    for each_mask in object_masks:
+                        cropped_objs_collection[objname] = cropped_objs_collection[objname].append(each_mask)
+            
+            
+    return cropped_objs_collection
+        #else:
+        #    return None
 
 #%%
 coco_ann_path = "/home/lin/codebase/cv_with_roboflow_data/tomato_coco_annotation/annotations/instances_default.json"
@@ -438,16 +448,25 @@ img_dir= "/home/lin/codebase/cv_with_roboflow_data/images"
 imgname = "10.jpg"
 objnames = ["ripe", "unripe", "flowers"]
 
-cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgname=imgname, img_dir=img_dir,
+cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgnames=imgname, img_dir=img_dir,
                                         coco_ann_file=coco_ann_path
                                         )
 
 #%%
 
-len(cropped_obj_collect["flowers"])
+len(cropped_obj_collect["unripe"])
 
 #%%
 cropped_obj_collect["unripe"][2]
+
+
+#%%
+imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
+all_crop_objects = crop_obj_per_image(obj_names=objnames, imgnames=imgnames_for_cropping, img_dir=img_dir,
+                   coco_ann_file=coco_ann_path)
+
+
+
 #%% # pseudo code
 def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
                       coco_ann_file
