@@ -187,6 +187,10 @@ def paste_object(dest_img_path, cropped_objects, min_x, min_y, max_x, max_y, res
             resized_object = cv2.resize(resized_object, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         # Create a mask for the resized object
+        print(f"resized_object: {resized_object.shape} \n")
+        if resized_object.shape[2] == 3:
+            resized_object = cv2.cvtColor(resized_object, cv2.COLOR_RGB2RGBA)
+            print(f"after resized object to RGBA: {resized_object.shape}")
         mask = resized_object[:, :, 3]
         mask_inv = cv2.bitwise_not(mask)
         resized_object = resized_object[:, :, :3]
@@ -384,7 +388,7 @@ def annToMask(ann, height, width):
 
 #%%
 from typing import Union
-def crop_obj_per_image(obj_names: list, imgnames: Union[str, List], img_dir,
+def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
                        coco_ann_file: str
                        ) -> Union[Dict[str,List], None]:
     #cropped_objs_collection = {obj: [] for obj in obj_names}
@@ -398,44 +402,48 @@ def crop_obj_per_image(obj_names: list, imgnames: Union[str, List], img_dir,
     category_id_to_name_map = {cat["id"]: cat["name"] for cat in categories}
     category_name_to_id_map = {cat["name"]: cat["id"] for cat in categories}
     
-    if isinstance(imgnames, str):
-        imgnames = [imgnames]
+    # if isinstance(imgnames, str):
+    #     imgnames = [imgnames]
     images = coco_data["images"]
-    for imgname in imgnames:
-        image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
-        image_id = image_info["id"]
-        image_height = image_info["height"]
-        image_width = image_info["width"]
-        annotations = coco_data["annotations"]
-        img_ann = [ann_info for ann_info in annotations if ann_info["image_id"]==image_id]
-        img_catids = set(ann_info["category_id"] for ann_info in img_ann)
-        img_objnames = [category_id_to_name_map[catid] for catid in img_catids]
-        img_path = os.path.join(img_dir, imgname)
-        image = cv2.imread(img_path)
-        objs_to_crop = set(img_objnames).intersection(set(obj_names))
-        if objs_to_crop:
-            for objname in obj_names:
-                print(f"objname: {objname} \n")
-                object_masks = []
-                if objname in img_objnames:
-                    obj_id = category_name_to_id_map[objname]
-                    for ann in img_ann:
-                        if ann["category_id"] == obj_id:
-                            mask = annToMask(ann=ann, height=image_height, width=image_width)
-                            
-                            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                            for contour in contours:
-                                x, y, w, h = cv2.boundingRect(contour)
-                                cropped_object = image[y:y+h, x:x+w]
-                                object_masks.append(cropped_object)
-                                #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
-                                #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
-                print(f"imgname: {imgname},  objname: {objname}")
+    # for imgname in imgnames:
+    image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
+    image_id = image_info["id"]
+    image_height = image_info["height"]
+    image_width = image_info["width"]
+    annotations = coco_data["annotations"]
+    img_ann = [ann_info for ann_info in annotations if ann_info["image_id"]==image_id]
+    img_catids = set(ann_info["category_id"] for ann_info in img_ann)
+    img_objnames = [category_id_to_name_map[catid] for catid in img_catids]
+    img_path = os.path.join(img_dir, imgname)
+    image = cv2.imread(img_path)
+    objs_to_crop = set(img_objnames).intersection(set(obj_names))
+    if objs_to_crop:
+        for objname in obj_names:
+            print(f"objname: {objname} \n")
+            object_masks = []
+            if objname in img_objnames:
+                obj_id = category_name_to_id_map[objname]
+                for ann in img_ann:
+                    if ann["category_id"] == obj_id:
+                        mask = annToMask(ann=ann, height=image_height, width=image_width)
+                        
+                        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        for contour in contours:
+                            x, y, w, h = cv2.boundingRect(contour)
+                            cropped_object = image[y:y+h, x:x+w]
+                            object_masks.append(cropped_object)
+                            #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
+                            #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
+            #print(f"imgname: {imgname},  objname: {objname}")
                 if objname not in cropped_objs_collection.keys():
                     cropped_objs_collection[objname] = object_masks
+                    #print(f"cropped_objs_collection: {cropped_objs_collection.keys()} \n")
                 else:
                     for each_mask in object_masks:
-                        cropped_objs_collection[objname] = cropped_objs_collection[objname].append(each_mask)
+                        #print(f"each mask cropped_objs_collection: {cropped_objs_collection.keys()} \n")
+                        #print(f"{objname}: {cropped_objs_collection[objname]} \n")
+                        #cropped_objs_collection[objname] = 
+                        cropped_objs_collection[objname].append(each_mask)
             
             
     return cropped_objs_collection
@@ -445,25 +453,29 @@ def crop_obj_per_image(obj_names: list, imgnames: Union[str, List], img_dir,
 #%%
 coco_ann_path = "/home/lin/codebase/cv_with_roboflow_data/tomato_coco_annotation/annotations/instances_default.json"
 img_dir= "/home/lin/codebase/cv_with_roboflow_data/images"
-imgname = "10.jpg"
+imgname = "494.jpg"
 objnames = ["ripe", "unripe", "flowers"]
 
-cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgnames=imgname, img_dir=img_dir,
+cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgname=imgname, img_dir=img_dir,
                                         coco_ann_file=coco_ann_path
                                         )
 
 #%%
 
+cropped_obj_collect.keys()
+#%%
+
 len(cropped_obj_collect["unripe"])
 
+Image.fromarray(cropped_obj_collect["unripe"][0])
 #%%
-cropped_obj_collect["unripe"][2]
+#cropped_obj_collect["unripe"][2]
 
 
 #%%
 imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
-all_crop_objects = crop_obj_per_image(obj_names=objnames, imgnames=imgnames_for_cropping, img_dir=img_dir,
-                   coco_ann_file=coco_ann_path)
+# all_crop_objects = crop_obj_per_image(obj_names=objnames, imgnames=imgnames_for_cropping, img_dir=img_dir,
+#                    coco_ann_file=coco_ann_path)
 
 
 
@@ -471,45 +483,74 @@ all_crop_objects = crop_obj_per_image(obj_names=objnames, imgnames=imgnames_for_
 def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
                       coco_ann_file
                       ):
-    all_crops = {obj: [] for obj in object_to_cropped}
-    allimg_crops = []
+    #all_crops = {obj: [] for obj in object_to_cropped}
+    #allimg_crops = []
+    all_crops = {}
     for img in imgnames_for_crop:
+        print(f"starting all_crops: {all_crops.keys()} \n")
+        print(f"img: {img}")
         crop_obj = crop_obj_per_image(obj_names=object_to_cropped, 
                                       imgname=img, 
                                     img_dir=img_dir,
                                     coco_ann_file=coco_ann_file
                                     )
-        allimg_crops.append(crop_obj)
-        
-    if allimg_crops:
-        for crop_res in allimg_crops:
-            ######  CONTINUE FROM HERE ##############
-        
-        
-        if crop_obj:
-            for crop in crop_obj:
-                #print(f"{crop}: {len(crop_obj[crop])} \n")
-                crop_obj_maskslist = crop_obj[crop]
-                for crop_mask in crop_obj_maskslist:
-                    if all_crops[crop] is None:
-                        all_crops[crop] = [crop_mask]
-                        print(f"In none")
-                    else:
-                        all_crops[crop] = all_crops[crop].append(crop_mask)
-                        print(f"outside none")
+        #print(f"crop_obj: {crop_obj} \n")
+        for each_object in crop_obj.keys():
+            if each_object not in all_crops.keys():
+                all_crops[each_object] = crop_obj[each_object]
+            else:
+                print(f"each_object: {each_object}\n all_crops: {all_crops.keys()}")
+                cpobjs = crop_obj[each_object]
+                if all_crops[each_object] is None:
+                    all_crops[each_object] = cpobjs
+                else:
+                    print(f"in else: {all_crops[each_object]}\n")
+                    for idx, cpobj in enumerate(cpobjs): 
+                        print(f"idx: {idx}")
+                        append_obj = all_crops[each_object]
+                        print(f"img: {img} len(append_obj): {len(append_obj)} \n type(append_obj): {type(append_obj)}")
+                        #all_crops[each_object] = append_obj.append(cpobj)
+                        all_crops[each_object].append(cpobj)
+                        print(f"idx: {idx} img: {img} successful appending")
+                        print(f"all_crops[each_object]: {all_crops[each_object]}")
+        print(f"finished all_crops: {all_crops.keys()} \n")            
                     
     return all_crops
+    #     allimg_crops.append(crop_obj)
+        
+    # if allimg_crops:
+    #     for crop_res in allimg_crops:
+    #         ######  CONTINUE FROM HERE ##############
+        
+        
+    #     if crop_obj:
+    #         for crop in crop_obj:
+    #             #print(f"{crop}: {len(crop_obj[crop])} \n")
+    #             crop_obj_maskslist = crop_obj[crop]
+    #             for crop_mask in crop_obj_maskslist:
+    #                 if all_crops[crop] is None:
+    #                     all_crops[crop] = [crop_mask]
+    #                     print(f"In none")
+    #                 else:
+    #                     all_crops[crop] = all_crops[crop].append(crop_mask)
+    #                     print(f"outside none")
+                    
+    # return all_crops
 
 
 #%%
 
 imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
-
+["10.jpg"]
 all_crop_objects = collate_all_crops(object_to_cropped=objnames, imgnames_for_crop=imgnames_for_cropping,
                                     img_dir=img_dir, coco_ann_file=coco_ann_path
                                     )
 
 
+#%%
+
+
+all_crop_objects.keys()
 #%%
 
 len(all_crop_objects["unripe"])
@@ -525,7 +566,8 @@ for obj in all_crop_objects:
 # after collating all crops, sample number of objects to be cropped
 # for each object and paste for each background image
 import random
-def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, save_coco_ann_as):
+def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, save_coco_ann_as,
+                        min_x, min_y, max_x, max_y, resize_width, resize_height):
     os.makedirs(output_img_dir, exist_ok=True)
     coco_ann = {"categories": [], "images": [], "annotations": []}
     ann_ids = []
@@ -536,6 +578,9 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, s
             sampled_obj = random.sample(objs_to_paste, int(num_obj))
             dest_img, bboxes, segmasks = paste_object(dest_img_path=bkg,
                                                         cropped_objects=sampled_obj,
+                                                        min_x=min_x, min_y=min_y, max_x=max_x,
+                                                        max_y=max_y, resize_h=resize_height,
+                                                        resize_w=resize_width
                                                         )
             file_name = os.path.basename(bkg)
             img_path = os.path.join(output_img_dir, file_name)
@@ -551,8 +596,10 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, s
                           "width": img_width, "id": img_id
                           }
             obj_category = {"id": obj_idx + 1, "name": obj}
-            coco_ann["categories"] = coco_ann["categories"].append(obj_category)
-            coco_ann["images"] = coco_ann["images"].append(image_info)
+            #coco_ann["categories"] = 
+            coco_ann["categories"].append(obj_category)
+            #coco_ann["images"] = 
+            coco_ann["images"].append(image_info)
             
             for ann_ins in range(0, len(bboxes)):
                 bbox = bboxes[ann_ins]
@@ -562,7 +609,8 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, s
                               "bbox": bbox,
                               "segmentation": segmask
                               } 
-                coco_ann["annotations"] = coco_ann["annotations"].append(annotation)
+                #coco_ann["annotations"] = 
+                coco_ann["annotations"].append(annotation)
     with open(save_coco_ann_as, "w") as filepath:
         json.dump(coco_ann, filepath)            
                 
@@ -579,10 +627,12 @@ obj_paste_num = {"ripe": 1, "unripe": 1}
 paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
                     objs_paste_num=obj_paste_num,
                     output_img_dir="pasted_output_dir",
-                    save_coco_ann_as="cpaug.json"
+                    save_coco_ann_as="cpaug.json",
+                    min_x=0, min_y=0, max_x=1, max_y=1, resize_height=50, resize_width=50
                     )
 
-
+## TODO
+# add randomization of pasting location to paste_crops_on_bkgs
             
 #%%
 
