@@ -228,7 +228,7 @@ def get_imgs_and_extract_features(img_path, img_resize_width,
                                 img_resize_height,
                                 model_family, model_name,
                                 img_normalization_weight,
-                                seed, #images_list, features_list, 
+                                seed, return_img_path=False,#images_list, features_list, 
                                 #model_artefacts_dict, #lock
                                 ):
     feat_extract = FeatureExtractor(seed=seed, img_resize_width=img_resize_width,
@@ -243,8 +243,16 @@ def get_imgs_and_extract_features(img_path, img_resize_width,
     img = feat_extract.load_and_resize_image(img_path, img_resize_width, img_resize_height)
     img_for_infer = feat_extract.load_image_for_inference(img_path, feat_extract.image_shape)
     feature = feat_extract.extract_features(img_for_infer, feature_extractor, preprocess)
-    return img, feature
+    if return_img_path:
+        return img, feature, img_path
+    else:
+        return img, feature
 
+def get_imgs_and_extract_features_wrapper(args):
+    get_imgs_and_extract_features(**args)
+    
+    
+    
 def extract_object_features_per_image(img_paths, coco_annotation_filepath)->Tuple[List, List]:
     coco = COCO(coco_annotation_filepath)
     obj_featlist = []
@@ -345,6 +353,9 @@ def img_feature_extraction_implementor(img_property_set,
             feature_list.append(feature)
         img_property_set.imgs = img_list
         img_property_set.features = feature_list
+        
+        args = [{"img_path": img_path, "img_resize_width": img_resize_width,
+                 "img_resize_height": img_resize_height, }]
     return img_property_set
         
 

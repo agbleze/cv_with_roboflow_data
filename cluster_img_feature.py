@@ -1,3 +1,4 @@
+#%%
 import pandas as pd
 import os
 from glob import glob
@@ -8,7 +9,7 @@ from feat import (ImgPropertySetReturnType, img_feature_extraction_implementor,
                   )
 
 img_dir = "field_crop_with_disease"
-
+img_dir = "/home/lin/codebase/__cv_with_roboflow_data/field_crop_with_disease"
 img_paths_list = sorted(glob(f"{img_dir}/*"))
 img_names = [os.path.basename(img) for img in img_paths_list]
 img_property_set = ImgPropertySetReturnType(img_paths=img_paths_list, img_names=img_names, total_num_imgs=100, max_num_clusters=4)
