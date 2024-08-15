@@ -1,4 +1,5 @@
 
+#%%
 from tqdm import tqdm
 import multiprocessing
 from feat import get_imgs_and_extract_features_wrapper, ImgPropertySetReturnType
@@ -55,8 +56,9 @@ def run_multiprocess(img_property_set,
     print("completed clustering")
     return imgclust_df
 
-
+#%%
 if __name__ == '__main__':
+    #%%
     img_dir = "field_crop_with_disease"
     img_dir = "/home/lin/codebase/__cv_with_roboflow_data/field_crop_with_disease"
     img_paths_list = sorted(glob(f"{img_dir}/*"))
@@ -67,3 +69,5 @@ if __name__ == '__main__':
     imgclust_df.to_csv("clustering_result.csv")
 
 
+
+# %%
