@@ -6,8 +6,17 @@ class ExampleClass(object):
         self.num1 = num1
         self.num2 = num2
         
-    def add_num(self, num1, num2):
+    def add_num(self, num1=10, num2=10):
+        self.check_num(num1)
+        self.check_num(num2)
         return num1 + num2
+    
+    def check_num(self, num):
+        if isinstance(num, int):
+            print("{num} is an int")
+        else:
+            print("{num} is not an int")
+        
     
     
 class MultiprocClass(ExampleClass):
@@ -16,7 +25,7 @@ class MultiprocClass(ExampleClass):
         
 def multiproc_wrapper(args):
     multi_proc_classinit = MultiprocClass()
-    res = multiproc_wrapper.add_num()
+    res = multi_proc_classinit.add_num(**args)
     return res
 
 
