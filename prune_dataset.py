@@ -13,7 +13,7 @@ detected_format = env.detect_dataset(path=img_dir)
 # %%
 
 dataset = Dataset.import_from(img_dir, detected_format[0])
-prune = Prune(dataset, cluster_method="entropy")
+prune = Prune(dataset, cluster_method="random")
 
 
 #%%
