@@ -17,6 +17,8 @@ prune = Prune(dataset, cluster_method="random")
 
 
 #%%
-prune.get_pruned()
+data = prune.get_pruned()
 
+# %%
+data.infos()
 # %%
