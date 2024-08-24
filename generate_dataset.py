@@ -17,5 +17,5 @@ TODO:
 into datumaro package
 
 
-use new link 
+use new link to override the previous one
 """
