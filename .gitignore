@@ -178,3 +178,4 @@ cv_with_roboflow_data/preprocess_assets/
 crop_objs/
 tomato_coco_annotation/
 *.json
+caltech-101
