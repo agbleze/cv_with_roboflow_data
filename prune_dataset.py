@@ -146,20 +146,9 @@ ndr_result.export("ndr_result", format="datumaro", save_media=True)
 random_result.export("random_result_imagenetFormat", format="imagenet_with_subset_dirs", save_media=True)
 
 # %%   ###train model with full data
-!otx train EfficientNet-B0 \
-    --train-data-roots caltech-101 \
-    --val-data-roots caltech-101 \
-    -o outputs
-# %%
-(otx) ...$ otx train --config src/otx/recipe/classification/multi_class_cls/mobilenet_v3_large.yaml  --data_root data/flower_photos --print_config
 
-...
-data_root: data/flower_photos
-work_dir: otx-workspace
-callback_monitor: val/accuracy
-disable_infer_num_classes: false
-engine:
-  task: MULTI_CLASS_CLS
-  device: auto
-data:
-...
+# %%  experiment to determine if representative sampling reduces training time while 
+# minimally compromising on the accuracy at an acceptable level
+
+ 
+
