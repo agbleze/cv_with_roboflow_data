@@ -1,0 +1,16 @@
+Experiment the impact of representative sampling of model accuracy and training time
+
+1. Instance segmentation (maskrcnnresnet50)
+Sampling method - cluster_random 50% of dataset
+- use the train and val dataset for representative sampling
+- Keep test set separate for evaluation and comparison fwih model train on full dataset
+
+other methods to experiment
+- centroid
+- entropy
+- Near duplicate removal
+
+-debug query_clust method and use it for experiment
+
+
+
