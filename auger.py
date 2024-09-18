@@ -55,7 +55,11 @@ def compose_albumentation_pipeline(augconfig):
     for augtype, aug_params in augconfig.items():
         aug_func = getattr(A, augtype)
         pipeline.append(aug_func(**aug_params))
-    return A.Compose(pipeline)
+    return A.Compose(pipeline, 
+                     bbox_params=A.BboxParams(format="coco", 
+                                              label_fields=["class_labels", "class_categories"]
+                                              )
+                     )
 
 #%%
 coco_path = "/home/lin/codebase/cv_with_roboflow_data/coco_annotation_coco.json"
@@ -92,21 +96,58 @@ def get_image_and_annotations(coco, img_id):
 img, anns = get_image_and_annotations(coco=coco, img_id=1)
 img_name = img["file_name"]
 img_path = f"/home/lin/codebase/cv_with_roboflow_data/subset_extract_folder/tomato_fruit/{img_name}"
-
+img = cv2.imread(img_path)
 #for ann in anns:
-segms = [ann["segmentation"] for ann in anns]
+segms = [coco.annToMask(ann) for ann in anns]
 bbox = [ann["bbox"] for ann in anns]
 cat = [ann["category_id"] for ann in anns]
 
+
+#%%
+for ann in anns:
+    coco.annToMask(ann["segmentation"])
+    break
 
 
 #%%
 albu_compose = compose_albumentation_pipeline(augconfig=augconfig)
 
 
+#%%
+transformed = albu_compose(image=img, bboxes=bbox, 
+             masks=segms, class_labels=cat, 
+             class_categories=["ripe", "ripe", "ripe"]
+             )
+
+#%%
+
+transformed["image"] 
+
+#%%
+transformed["bboxes"] 
+
+#%%
+transformed_masks = transformed["masks"] 
+
+#%%
+mask1 = transformed_masks[0]
+
+#%%
+
+coco.annToRLE(mask1)
+#%%
+transformed["class_labels"]
+
+#%%
+
+from PIL import Image
 
 
+Image.fromarray(transformed["image"])#.show()
 
+#%%
+
+cv2.imshow(img)
 #%%
 
 is_valid_albumentation_parameter(augconfig=augconfig)      
