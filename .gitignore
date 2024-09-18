@@ -180,3 +180,5 @@ tomato_coco_annotation/
 *.json
 caltech-101
 flower_photos
+*.png
+*.jpg
