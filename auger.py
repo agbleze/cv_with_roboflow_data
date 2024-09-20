@@ -133,6 +133,41 @@ transformed_masks = transformed["masks"]
 mask1 = transformed_masks[0]
 
 #%%
+from pycocotools import mask as maskUtils
+
+#%%
+
+maskUtils.toMask(mask1).flatten().tolist()
+
+#%%
+
+import numpy as np
+from pycocotools import mask as maskUtils
+
+# Example binary mask (2D numpy array)
+binary_mask = np.array([
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0]
+], dtype=np.uint8)
+
+# Convert binary mask to RLE
+rle = maskUtils.encode(np.asfortranarray(mask1))
+
+# Convert RLE to polygons
+polygons = maskUtils.frPyObjects(rle, mask1.shape[0], binary_mask.shape[1])
+
+# Merge the polygons
+merged_polygons = maskUtils.merge(polygons)
+
+# Convert to list format
+flattened_polygons = merged_polygons.flatten().tolist()
+
+print(flattened_polygons)
+
+#%%
 
 coco.annToRLE(mask1)
 #%%
@@ -156,4 +191,4 @@ is_valid_albumentation_parameter(augconfig=augconfig)
 inspect.signature(getattr(A,albu_methods[0])).parameters
 
 
-# %%
+# %% TODO: check augmented mask and bbox
