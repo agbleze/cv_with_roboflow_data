@@ -192,3 +192,39 @@ inspect.signature(getattr(A,albu_methods[0])).parameters
 
 
 # %% TODO: check augmented mask and bbox
+
+from torchvision.utils import draw_bounding_boxes, draw_segmentation_masks
+from torchvision.io import read_image
+import torchvision.transforms.functional as F
+import torch
+import matplotlib.pyplot as plt
+
+#%%
+image = read_image(img_path)
+
+bbox_converted = [[bb[0], bb[1], bb[0] + bb[2], bb[1] + bb[3]] for bb in bbox]
+# %%
+bbox_converted = torch.tensor(bbox_converted, dtype=torch.float)
+
+#%%
+images_with_bboxes = draw_bounding_boxes(image=image, boxes=bbox_converted,
+                                         colors="red", width=2
+                                         )
+
+# %%
+plt.imshow(F.to_pil_image(images_with_bboxes))
+plt.axis("off")
+plt.show()
+# %%
+segms_tensor = torch.tensor(segms, dtype=torch.bool)
+# %%
+image_with_mask = draw_segmentation_masks(image=images_with_bboxes, masks=segms_tensor, alpha=0.9)
+#%%
+plt.imshow(F.to_pil_image(image_with_mask))
+plt.axis("off")
+plt.show()
+
+# %% create function to take aug, visualize default img and augmentd img with mask and bbox
+
+def augment_and_visualize(augconfig, img_path):
+    
