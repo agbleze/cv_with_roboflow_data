@@ -49,7 +49,12 @@ def is_valid_albumentation_parameter(augconfig):
         else:
             return True
             
-def compose_albumentation_pipeline(augconfig, replay=False):
+def compose_albumentation_pipeline(augconfig, replay=False, 
+                                   label_fields=[#"class_labels", 
+                                                 "category_ids", 
+                                                 "ann_ids"
+                                                 ]
+                                   ):
     is_valid_albumentation_parameter(augconfig=augconfig)
     pipeline = []
     for augtype, aug_params in augconfig.items():
@@ -58,13 +63,13 @@ def compose_albumentation_pipeline(augconfig, replay=False):
     if not replay:
         return A.Compose(pipeline, 
                         bbox_params=A.BboxParams(format="coco", 
-                                                label_fields=["class_labels", "class_categories"]
+                                                label_fields=label_fields
                                                 )
                         )
     else:
         return A.ReplayCompose(transforms=pipeline,
                                 bbox_params=A.BboxParams(format="coco", 
-                                                        label_fields=["class_labels", "class_categories"]
+                                                        label_fields=label_fields
                                                         )
                                 )
 
@@ -134,6 +139,9 @@ albu_compose(image=Image.open(img_path), bboxes=bbox,
 
 augimg = transformed["image"] 
 
+#%%
+
+augimg.shape
 #%%
 
 augimg.save()
@@ -240,7 +248,7 @@ plt.show()
 
 # %% create function to take aug, visualize default img and augmentd img with mask and bbox
 
-def augment_and_visualize(augconfig, img_path):
+def augment_and_visualize(augconfig, img_path, coco=coco):
     albu_compose = compose_albumentation_pipeline(augconfig=augconfig)
     img, anns = get_image_and_annotations(coco=coco, img_id=1)
     img_name = img["file_name"]
@@ -251,13 +259,23 @@ def augment_and_visualize(augconfig, img_path):
     segms = [coco.annToMask(ann) for ann in anns]
     bbox = [ann["bbox"] for ann in anns]
     cat = [ann["category_id"] for ann in anns]
+    ann_ids = [ann["id"] for ann in anns]
+    class_categories = []
+    for cat_id in cat:
+        for _cat_id, cat_info in coco.cats.items():
+            if _cat_id == cat_id:
+                name = cat_info["name"]
+                class_categories.append(name)
+                
+        
     bbox_converted = [[bb[0], bb[1], bb[0] + bb[2], bb[1] + bb[3]] for bb in bbox]
     bbox_converted = torch.tensor(bbox_converted, dtype=torch.float)
     segms_tensor = torch.tensor(segms, dtype=torch.bool)
     
     transformed = albu_compose(image=img, bboxes=bbox, 
                                 masks=segms, class_labels=cat, 
-                                class_categories=["ripe", "ripe", "ripe"]
+                                class_categories=["ripe", "ripe", "ripe"],
+                                ann_ids = ann_ids
                                 )
     augmented_image = transformed["image"] 
     filepath = "augmented_img.png"
@@ -313,31 +331,89 @@ augment_and_visualize(augconfig=augconfig, img_path=img_path)
 #%%
 from glob import glob
 import os
-def augment_imgs(augconfig, img_dir, coco_annfilepath):
+def augment_imgs(augconfig, img_dir, coco_annfilepath, 
+                 save_augmented_annotation_as="augmented_annotations.json",
+                 augmented_output_imgdir="augmented_imgs"
+                 ):
+    os.makedirs(augmented_output_imgdir, exist_ok=True)
     coco = COCO(coco_annfilepath)
     imglist = glob(f"{img_dir}/*")
+    augmented_images_info = []
+    augmented_annotation_info = []
     for img_path in imglist:
         imgname = os.path.basename(img_path)
-        imgid = [coco_obj["id"] for coco_obj in coco.imgs if 
+        imgid = [coco_obj["id"] for _, coco_obj in coco.imgs.items() if 
                  os.path.basename(coco_obj["file_name"]) == imgname][0]
+
         ann_ids = coco.getAnnIds(imgIds=imgid)
         anns = coco.loadAnns(ids=ann_ids)
-        segmasks = [ann["segmentation"] for ann in anns]
+        segmasks = [coco.annToMask(ann) for ann in anns]
         all_annid = [ann["id"] for ann in anns]
         ann_category_ids = [ann["category_id"] for ann in anns]
-        bboxes = [ann["bboxes"] for ann in anns]
+        bboxes = [ann["bbox"] for ann in anns]
         augpipeline = compose_albumentation_pipeline(augconfig=augconfig)
         imgread = cv2.imread(img_path)
         image = cv2.cvtColor(src=imgread, code=cv2.COLOR_BGR2RGB)
-        augmented_obj = augpipeline(image=image, bboxes=bboxes, masks=segmasks, 
-                                    category_ids=ann_category_ids
+        # include annotation ids
+        augmented_obj = augpipeline(image=image, bboxes=bboxes, 
+                                    masks=segmasks, 
+                                    category_ids =ann_category_ids,
+                                    ann_ids=all_annid
                                     )
         aug_image = augmented_obj["image"]
         aug_bboxes = augmented_obj["bboxes"]
         aug_masks = augmented_obj["masks"]
+        aug_ann_ids = augmented_obj["ann_ids"]
+        aug_category_ids = augmented_obj["category_ids"]
         
+        aug_img_height, aug_img_width = aug_image.shape[0], aug_image.shape[1]
+        # Calculate the segmentation
+        segmentations = []
+        for mask in aug_masks:
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            segmentation = []
+            for contour in contours:
+                contour = contour.flatten().tolist()
+                segmentation.append(contour)
+            segmentations.append(segmentation)
+            
+        for img_info in coco.imgs.values():
+            if os.path.basename(img_info["file_name"]) == imgname:
+                img_info["width"] = aug_img_width
+                img_info["height"] = aug_img_height
+                augmented_images_info.append(img_info)
+                
+        # need to ensure correct order and number of annotations when spatial augmentation is 
+        # performed and some of bbox are below min_area and min_visibility
+        for aug_annid, aug_segmask, aug_bbox in zip(aug_ann_ids, segmentations, aug_bboxes):
+            for anninfo in anns:
+                if aug_annid == anninfo["id"]:
+                    anninfo["bbox"] = aug_bbox
+                    anninfo["segmentation"] = aug_segmask
+                    area = aug_bbox[2] * aug_bbox[3]
+                    anninfo["area"] = area
+                    augmented_annotation_info.append(anninfo)
+        output_augimg_path = os.path.join(augmented_output_imgdir, imgname)
+        Image.fromarray(aug_image).save(output_augimg_path)
+                    
         
+                    
+    with open(coco_annfilepath, "r") as filepath:
+        cocodata = json.load(filepath)
         
+        cocodata["images"] = augmented_images_info
+        cocodata["annotations"] = augmented_annotation_info 
+        
+    with open(save_augmented_annotation_as, "w") as outfile:
+        json.dump(cocodata, outfile)
+        
+    # TODO. visualization of augmented images
+    
+        
+#%%
+img_dir = "/home/lin/codebase/cv_with_roboflow_data/subset_extract_folder/tomato_fruit"
+augment_imgs(augconfig=augconfig, img_dir=img_dir, coco_annfilepath=coco_path)
+      
         
     
    
