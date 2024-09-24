@@ -562,33 +562,6 @@ visualize_segmask(annotation_path="augmented_annotations.json",
 draw_bbox_and_polygons(annotation_path="augmented_annotations.json", 
                   img_dir="/home/lin/codebase/cv_with_roboflow_data/augmented_imgs"
                   )   
-#%%   
-    #     #img = cv2.imread(img_path)
-    #     #mask = np.zeros_like(img)
-    #     for ann in anns:
-    #         color = (np.random.randint(0,255), np.random.randint(0,255), np.random.randint(0,255))
-    #         pts = np.array(ann['segmentation']).reshape(-1, 1, 2).astype(np.int32)
-    #         cv2.fillPoly(mask, [pts], color)
-    #         #centroid = np.mean(pts, axis=0)
-    #     img_masked = cv2.addWeighted(img, 0.7, mask, 0.1, 0)
-    #     plt.imshow(img_masked)
-    #     plt.show()
-    
-    
-    # # Open the image
-    
-
-    # # Draw bounding boxes
-    # for bbox in bboxes:
-    #     draw.rectangle(bbox, outline="red", width=3)
-
-    # # Draw segmentation masks (polygons)
-    # for polygon in polygons:
-    #     draw.polygon(polygon, outline="blue", fill=(0, 0, 255, 128))  # Semi-transparent blue
-
-    # # Save the output image
-    # img.save(output_path, format='PNG')  
-    
 
 
 # %%
