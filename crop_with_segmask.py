@@ -147,6 +147,20 @@ Image.fromarray(cv2.cvtColor(objects[0], cv2.COLOR_BGR2BGRA))
 objects[2].shape
 
 
+#%%
+
+# Function to adjust segmentation based on bbox
+def adjust_segmentation(bbox, segmentation):
+    x_offset, y_offset = bbox[0], bbox[1]
+    adjusted_segmentation = []
+    for polygon in segmentation:
+        adjusted_polygon = []
+        for i in range(0, len(polygon), 2):
+            adjusted_polygon.append(polygon[i] + x_offset)
+            adjusted_polygon.append(polygon[i + 1] + y_offset)
+        adjusted_segmentation.append(adjusted_polygon)
+    return adjusted_segmentation
+
 #%%    ########## with resize   #########
 
 import os
@@ -259,14 +273,19 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], mi
 
             # Calculate the bounding box
             bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
-            # Calculate the segmentation
+            # Calculate the segmentation 
+            # changed mask to resized_object
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             segmentation = []
             for contour in contours:
                 contour = contour.flatten().tolist()
                 segmentation.append(contour)
             bboxes.append(bbox)
-            segmentations.append(segmentation)
+            # translate segmentation here
+            adjusted_segmentation = adjust_segmentation(bbox=bbox, segmentation=segmentation)
+            
+            #segmentations.append(segmentation)
+            segmentations.append(adjusted_segmentation)
             category_ids.append(int(cat_id))
     return dest_image, bboxes, segmentations, category_ids
 
@@ -301,6 +320,17 @@ cv2.imwrite('path_to_result_image.png', result_image)
 annotation = create_coco_annotation(image_id=1, bbox=bbox, segmentation=segmentation)
 export_coco_annotation(annotation, 'path_to_annotation.json')
 
+#%%
+
+"""
+given a bbox in coco format and a segmentation in a polygon format,
+
+use the bbox to change the segmentation such that it falls within the bbox.
+
+
+Note the bbox is correct for the location of the object but the segmentation mask is 
+only correct for the shape but not the location of the object
+"""
 #%%
 #cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 import cv2
@@ -659,7 +689,8 @@ for obj in all_crop_objects:
 # after collating all crops, sample number of objects to be cropped
 # for each object and paste for each background image
 import random
-def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, output_img_dir, save_coco_ann_as,
+def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict, 
+                        output_img_dir, save_coco_ann_as,
                         min_x=None, min_y=None, 
                         max_x=None, max_y=None, 
                         resize_width=None, resize_height=None,
@@ -742,6 +773,14 @@ bkgs = ["/home/lin/codebase/cv_with_roboflow_data/images/1859.jpg",
         "/home/lin/codebase/cv_with_roboflow_data/images/1892.jpg"
         ]
 
+
+#%%
+
+import shutil
+
+selected_imgs = "/home/lin/codebase/cv_with_roboflow_data/selected_imgs"
+for imgpath in bkgs:
+    shutil.copy(imgpath, selected_imgs)
 #%%
 obj_paste_num = {"ripe": 2, "unripe": 2}    
 paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
@@ -753,7 +792,70 @@ paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects,
                     resize_height=50, 
                     resize_width=50
                     )
+#%%
 
+#%%
+from visualize_bbox import visualize_bboxes
+
+output_dir = "/home/lin/codebase/cv_with_roboflow_data/viz_cpaug_bbox"
+visualize_bboxes(annotation_file="cpaug.json", image_dir="pasted_output_dir", 
+                 output_dir=output_dir
+                 )
+
+#%%
+from glob import glob
+import os
+from PIL import Image, ImageDraw, ImageFont
+import random
+
+def random_color():
+    return tuple(random.randint(0, 255) for _ in range(3))
+
+def draw_bbox_and_polygons(annotation_path, img_dir, 
+                           visualize_dir="visualize_bbox_and_polygons"
+                           ):
+    os.makedirs(visualize_dir, exist_ok=True)
+    coco = COCO(annotation_path)
+    for id, imginfo in coco.imgs.items():
+        file_name = imginfo["file_name"]
+        imgid = imginfo["id"]
+        ann_ids = coco.getAnnIds(imgIds=imgid)
+        anns = coco.loadAnns(ids=ann_ids)
+        bboxes = [ann["bbox"] for ann in anns]
+
+        polygons = [ann["segmentation"][0] for ann in anns]
+        category_ids = [ann["category_id"] for ann in anns]
+        category_names = [coco.cats[cat_id]["name"] for cat_id in category_ids]
+        
+        image_path = os.path.join(img_dir, file_name)
+        
+        img = Image.open(image_path).convert("RGBA")
+        mask_img = Image.new("RGBA", img.size)
+        draw = ImageDraw.Draw(mask_img)
+        font = ImageFont.load_default()
+        # Draw bounding boxes
+        for bbox, polygon, category_name in zip(bboxes, polygons, category_names):
+            color = random_color()
+            bbox = [bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]]
+            draw.rectangle(bbox, outline=color, width=2)
+            draw.polygon(polygon, outline=color, fill=color + (100,))
+            text_position = (bbox[0], bbox[1] - 10)
+            draw.text(text_position, category_name, fill=color, font=font)
+        blended_img = Image.alpha_composite(img, mask_img)
+        final_img = blended_img.convert("RGB")
+        # Save the output image
+        output_path = os.path.join(visualize_dir, file_name)  # Replace "visualize_bbox_and_polygons" with your desired output directory path  # Ensure that the directory exists before saving the image  # Example: output_path = "output/image_with_bbox_and_polygons.png"  # Save the image in PNG format  # Example: img.save(output_path, format='PNG')  # Save the image in JPEG format  # Example: img.save(output_path, format='JPEG')  # Save the image in GIF format  # Example: img.save(output_path, format='GIF')  # Save the image in TIFF format  # Example: img.save(output_path, format='TIFF')  # Save the image in WebP format  # Example: img.save(output_path, format='WEBP')
+        final_img.save(output_path, format='PNG') 
+
+
+#%%
+draw_bbox_and_polygons(annotation_path="cpaug.json", 
+                       img_dir="pasted_output_dir", 
+                        visualize_dir="cpaug_visualize_bbox_and_polygons"
+                        )
+
+
+#%%
 ## TODO
 # debug duplicates in cpaug annotation writing           
 
@@ -773,10 +875,90 @@ random.sample([1,2,3,4,9,2,3,3], 4)
 
 
 """
+TODO:
 given the annotation of images in coco format, read the bbox and segmentation 
 and use that to determine and identify images with occlusion. After that, for 
 occluded images, adjust the segmentation and bbox such that one of the image 
 takes the full bbox  and segmentation and the others take the non-occluded 
 part of the segmentation
 
+
+
+2. Testing
+A. generate random images and annotations
+B. use A to test the copy paste functions
 """
+
+#%%
+from randimage import get_random_image
+from tqdm import tqdm
+import matplotlib
+from glob import glob
+import multiprocessing
+from generate_coco_ann import generate_coco_annotation_file
+
+def save_random_imgs(img_size, save_as):
+    img = get_random_image(img_size)
+    matplotlib.image.imsave(save_as, img)
+    
+def save_random_img_wrapper(args):
+    save_random_imgs(**args)
+    
+def generate_random_images_and_annotation(image_height, image_width,
+                                        number_of_images, output_dir=None,
+                                        img_ext=None,
+                                        image_name=None,
+                                        parallelize=True,
+                                        save_ann_as="generated_annotation.json"
+                                        ):
+    if not output_dir:
+        output_dir = "random_images"
+    if not image_name:
+        image_name = "random_image"
+    if not img_ext:
+        img_ext = "jpg"
+    os.makedirs(output_dir, exist_ok=True)
+    img_size = (int(image_height), int(image_width))
+    iterations = [i for i in range(0, int(number_of_images))]
+    
+    if not parallelize:
+        for idx in tqdm(iterations, total=len(iterations), desc="Generating images"):
+            save_as = os.path.join(output_dir, f"{image_name}_{str(idx)}.{img_ext}")
+            save_random_imgs(img_size, save_as)
+    else:
+        args = [{"img_size": img_size,
+                 "save_as": os.path.join(output_dir, f"{image_name}_{str(idx)}.{img_ext}")
+                 } for idx in iterations
+                ]
+        chunksize_divider = 50
+        chunksize = max(1, len(args)//chunksize_divider)
+        num_cpus = multiprocessing.cpu_count()
+        with multiprocessing.Pool(num_cpus) as p:
+            list(tqdm(p.imap_unordered(save_random_img_wrapper,
+                                       args,
+                                       chunksize=chunksize
+                                       ),
+                      total=len(iterations),
+                      desc="Generating images in multiprocessing"
+                      )
+                 )
+    img_paths = glob(f"{output_dir}/*")
+    generate_coco_annotation_file(image_width=image_width, 
+                                  image_height=image_height, 
+                                  output_path=save_ann_as, 
+                                  img_list=img_paths
+                                  )
+    
+    # generate annotations for image
+    return img_paths
+        
+    
+
+# %%
+generate_random_images_and_annotation(image_height=124, image_width=124,
+                                    number_of_images=10, output_dir=None,
+                                    img_ext=None,
+                                    image_name=None,
+                                    parallelize=True
+                                    )
+# %%

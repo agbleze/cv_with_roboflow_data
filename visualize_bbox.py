@@ -41,11 +41,12 @@ def visualize_bboxes(annotation_file, image_dir, output_dir):
         print(f"Bounding boxes visualized for {image_info['file_name']} and saved as {output_path}")
 
 #%% Example usage
-annotation_file = "/home/lin/codebase/merge_coco/cor4_merged_annotations.json"
-valid_coco = "/home/lin/codebase/merge_coco/valid_annotations.json"
-image_dir = "/home/lin/codebase/merge_coco/valid"
-output_dir = "/home/lin/codebase/merge_coco/valid_viz_cor4"
-visualize_bboxes(valid_coco, image_dir, output_dir)
+if __name__ == '__main__':
+    annotation_file = "/home/lin/codebase/merge_coco/cor4_merged_annotations.json"
+    valid_coco = "/home/lin/codebase/merge_coco/valid_annotations.json"
+    image_dir = "/home/lin/codebase/merge_coco/valid"
+    output_dir = "/home/lin/codebase/merge_coco/valid_viz_cor4"
+    visualize_bboxes(valid_coco, image_dir, output_dir)
 
 # %%
 # flea-beetle-2_jpg.rf.5d03f74e1f36cc80c7606c28f6589420
