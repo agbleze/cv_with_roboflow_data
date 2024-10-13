@@ -168,7 +168,16 @@ import cv2
 import numpy as np
 from typing import Tuple
 
-def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], min_x=None, min_y=None, 
+def get_polygon_coordinates(mask):
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    segmentation = []
+    for contour in contours:
+        contour = contour.flatten().tolist()
+        segmentation.append(contour)
+    return segmentation
+            
+def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], 
+                 min_x=None, min_y=None, 
                  max_x=None, max_y=None, 
                  resize_w=None, resize_h=None, 
                  sample_location_randomly: bool = True,
@@ -186,18 +195,6 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], mi
                          key being the category_id and value being a list of
                          cropped object image (np.ndarray)
                          """)
-    # Calculate the position in the destination image
-    
-    # if sample_location_randomly:
-    #     min_x = random.random()
-    #     max_x = random.uniform(min_x, 1)
-    #     min_y = random.random()
-    #     max_y = random.uniform(min_y, 1)
-        
-    # x = int(min_x * dest_w)
-    # y = int(min_y * dest_h)
-    # max_x = int(max_x * dest_w)
-    # max_y = int(max_y * dest_h)
     bboxes, segmentations, category_ids = [], [], []
     # Resize the cropped object if resize dimensions are provided
     for cat_id in cropped_objects:
@@ -205,7 +202,7 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], mi
         if not isinstance(cat_cropped_objects, list):
             cat_cropped_objects = [cat_cropped_objects]
         for cropped_object in cat_cropped_objects:
-            print(f"cropped_object: {cropped_object.shape}")
+            #print(f"cropped_object: {cropped_object.shape}")
             if sample_location_randomly:
                 min_x = random.random()
                 max_x = random.uniform(min_x, 1)
@@ -223,7 +220,7 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], mi
                 max_y = int(max_y * dest_h)
                 
             if resize_w and resize_h:
-                print(f"cropped_object: {cropped_object} \n")
+                #print(f"cropped_object: {cropped_object} \n")
                 obj_h, obj_w = cropped_object.shape[:2]
                 aspect_ratio = obj_w / obj_h
                 if resize_w / resize_h > aspect_ratio:
@@ -247,46 +244,91 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], mi
                 scale = min(scale_x, scale_y)
                 new_w = int(obj_w * scale)
                 new_h = int(obj_h * scale)
+                
+                if (new_w <= 0) or (new_h <= 0):
+                    print(f"""forcing the resized objects height and width
+                          to be within the paste location specified
+                          results in object height of {new_h} and object width of {new_w}
+                          hence the resized objects is used without forcing into paste location.
+                          This can lead to paste objects extending outside the paste location
+                          
+                          """)
+                    print(f"new_w: {new_w}\n")
+                    print(f"new_h: {new_h}\n")
+                    new_w = obj_w // 3
+                    new_h = obj_h // 3
+                    print(f"""Halved the obj height to {new_h} and obj width to {new_w}
+                          """
+                          )
+                    
+                else:
+                    print(f"new_w: {new_w}\n")
+                    print(f"new_h: {new_h}\n")
                 resized_object = cv2.resize(resized_object, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
             # Create a mask for the resized object
-            print(f"resized_object: {resized_object.shape} \n")
+            #print(f"resized_object: {resized_object.shape} \n")
             if resized_object.shape[2] == 3:
                 resized_object = cv2.cvtColor(resized_object, cv2.COLOR_RGB2RGBA)
-                print(f"after resized object to RGBA: {resized_object.shape}")
+                #print(f"after resized object to RGBA: {resized_object.shape}")
             mask = resized_object[:, :, 3]
             mask_inv = cv2.bitwise_not(mask)
             resized_object = resized_object[:, :, :3]
 
             # Define the region of interest (ROI) in the destination image
             roi = dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]]
-
+            roi = cv2.resize(roi, (mask_inv.shape[1], mask_inv.shape[0]),
+                             interpolation=cv2.INTER_AREA
+                             )
+            
+            #mask_inv = cv2.resize(mask_inv, (roi.shape[1], roi.shape[0]))
             # Black-out the area of the object in the ROI
+            print(f"roi: {roi.shape}  ====  mask_inv: {mask_inv.shape}")
             img_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
 
             # Take only region of the object from the object image
             obj_fg = cv2.bitwise_and(resized_object, resized_object, mask=mask)
 
-            # Put the object in the ROI and modify the destination image
-            dst = cv2.add(img_bg, obj_fg)
-            dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]] = dst
-
-            # Calculate the bounding box
+            # sometimes, we are unable to get a segmask large enough for visualozation or 
+            # not enough polygon coordinate. 
+            # we want to check if that is the case and then just skip it without pasting it
+            segmentation = get_polygon_coordinates(mask=mask)
             bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
-            # Calculate the segmentation 
-            # changed mask to resized_object
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            segmentation = []
-            for contour in contours:
-                contour = contour.flatten().tolist()
-                segmentation.append(contour)
-            bboxes.append(bbox)
-            # translate segmentation here
+            
             adjusted_segmentation = adjust_segmentation(bbox=bbox, segmentation=segmentation)
             
+            if len(adjusted_segmentation[0]) < 8:
+                print(f"adjusted_segmentation: {adjusted_segmentation}")
+                print("segemntation has less than 8 polygon coordinates hence not used and object not pasted")
+            else:
+            # Put the object in the ROI and modify the destination image
+                dst = cv2.add(img_bg, obj_fg)
+                print(f"dst: {dst.shape} ====== dest_image: {dest_image.shape}")
+                print(f"y+resized_object.shape[0]: {y+resized_object.shape[0]}")
+                print(f"x+resized_object.shape[1]: {x+resized_object.shape[1]}")
+                print(f"y: {y}")
+                print(f"x: {x}")
+                dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]] = dst
+
+            # Calculate the bounding box
+            #bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
+            # Calculate the segmentation 
+            # changed mask to resized_object
+            
+            # contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # segmentation = []
+            # for contour in contours:
+            #     contour = contour.flatten().tolist()
+            #     segmentation.append(contour)
+                
+            # # bboxes.append(bbox)
+            # # translate segmentation here
+            # adjusted_segmentation = adjust_segmentation(bbox=bbox, segmentation=segmentation)
+            
             #segmentations.append(segmentation)
-            segmentations.append(adjusted_segmentation)
-            category_ids.append(int(cat_id))
+                segmentations.append(adjusted_segmentation)
+                category_ids.append(int(cat_id))
+                bboxes.append(bbox)
     return dest_image, bboxes, segmentations, category_ids
 
 def create_coco_annotation(image_id, bbox, segmentation):
@@ -320,17 +362,6 @@ cv2.imwrite('path_to_result_image.png', result_image)
 annotation = create_coco_annotation(image_id=1, bbox=bbox, segmentation=segmentation)
 export_coco_annotation(annotation, 'path_to_annotation.json')
 
-#%%
-
-"""
-given a bbox in coco format and a segmentation in a polygon format,
-
-use the bbox to change the segmentation such that it falls within the bbox.
-
-
-Note the bbox is correct for the location of the object but the segmentation mask is 
-only correct for the shape but not the location of the object
-"""
 #%%
 #cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 import cv2
@@ -506,7 +537,7 @@ def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
     objs_to_crop = set(img_objnames).intersection(set(obj_names))
     if objs_to_crop:
         for objname in obj_names:
-            print(f"objname: {objname} \n")
+            #print(f"objname: {objname} \n")
             object_masks = []
             if objname in img_objnames:
                 obj_id = category_name_to_id_map[objname]
@@ -524,8 +555,8 @@ def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
                                                              mask=mask_cropped)
                             # Remove the background (set to transparent)
                             cropped_object = cv2.cvtColor(cropped_object, cv2.COLOR_BGR2RGBA)
-                            print(f"mask_cropped: {mask_cropped.shape} \n")
-                            print(f"new mask_cropped[:,:] {mask_cropped[:,:].shape} \n")
+                            #print(f"mask_cropped: {mask_cropped.shape} \n")
+                            #print(f"new mask_cropped[:,:] {mask_cropped[:,:].shape} \n")
                             cropped_object[:, :, 3] = mask_cropped * 255
                             object_masks.append(cropped_object)
                             #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
@@ -697,7 +728,9 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict,
                         sample_location_randomly=True
                         ):
     os.makedirs(output_img_dir, exist_ok=True)
-    coco_ann = {"categories": [{"id": obj_idx+1, "name": obj} for obj_idx, obj in enumerate(sorted(objs_paste_num))], 
+    coco_ann = {"categories": [{"id": obj_idx+1, "name": obj} 
+                               for obj_idx, obj in enumerate(sorted(objs_paste_num))
+                               ], 
                 "images": [], 
                 "annotations": []
                 }
@@ -779,6 +812,8 @@ bkgs = ["/home/lin/codebase/cv_with_roboflow_data/images/1859.jpg",
 import shutil
 
 selected_imgs = "/home/lin/codebase/cv_with_roboflow_data/selected_imgs"
+
+#%%
 for imgpath in bkgs:
     shutil.copy(imgpath, selected_imgs)
 #%%
@@ -792,6 +827,11 @@ paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects,
                     resize_height=50, 
                     resize_width=50
                     )
+
+
+#%%
+
+
 #%%
 
 #%%
@@ -811,9 +851,12 @@ import random
 def random_color():
     return tuple(random.randint(0, 255) for _ in range(3))
 
-def draw_bbox_and_polygons(annotation_path, img_dir, 
-                           visualize_dir="visualize_bbox_and_polygons"
+def draw_bbox_and_polygons(annotation_path, img_dir=None, 
+                           visualize_dir="visualize_bbox_and_polygons",
+                           imgpaths_list=None
                            ):
+    if not img_dir and not imgpaths_list:
+        raise ValueError("Either img_dir or imgpaths_list should be provided")
     os.makedirs(visualize_dir, exist_ok=True)
     coco = COCO(annotation_path)
     for id, imginfo in coco.imgs.items():
@@ -826,18 +869,24 @@ def draw_bbox_and_polygons(annotation_path, img_dir,
         polygons = [ann["segmentation"][0] for ann in anns]
         category_ids = [ann["category_id"] for ann in anns]
         category_names = [coco.cats[cat_id]["name"] for cat_id in category_ids]
-        
-        image_path = os.path.join(img_dir, file_name)
+        ann_ids = [ann["id"] for ann in anns]
+        if img_dir:
+            image_path = os.path.join(img_dir, file_name)
+        elif imgpaths_list:
+            image_path = [imgpath for imgpath in imgpaths_list if os.path.basename(imgpath) == file_name][0]
         
         img = Image.open(image_path).convert("RGBA")
         mask_img = Image.new("RGBA", img.size)
         draw = ImageDraw.Draw(mask_img)
         font = ImageFont.load_default()
         # Draw bounding boxes
-        for bbox, polygon, category_name in zip(bboxes, polygons, category_names):
+        for bbox, polygon, category_name, ann_id in zip(bboxes, polygons, category_names, ann_ids):
             color = random_color()
             bbox = [bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]]
             draw.rectangle(bbox, outline=color, width=2)
+            print(f"polygon: {polygon}")
+            print(f"len(polygon): {len(polygon)}")
+            print(f"ann_id: {ann_id}")
             draw.polygon(polygon, outline=color, fill=color + (100,))
             text_position = (bbox[0], bbox[1] - 10)
             draw.text(text_position, category_name, fill=color, font=font)
@@ -856,8 +905,83 @@ draw_bbox_and_polygons(annotation_path="cpaug.json",
 
 
 #%%
-## TODO
-# debug duplicates in cpaug annotation writing           
+
+def crop_paste_obj(object_to_cropped, imgnames_for_crop, img_dir,
+                    coco_ann_file, bkgs, objs_paste_num,
+                    output_img_dir, save_coco_ann_as,
+                    min_x=None, min_y=None, 
+                    max_x=None, max_y=None, 
+                    resize_width=None, resize_height=None,
+                    sample_location_randomly=True,
+                    visualize_dir="cpaug_visualize_bbox_and_polygons"
+                    ):
+    all_crop_objects = collate_all_crops(object_to_cropped=object_to_cropped, 
+                                         imgnames_for_crop=imgnames_for_crop,
+                                        img_dir=img_dir, coco_ann_file=coco_ann_file
+                                        )
+    paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
+                        objs_paste_num=objs_paste_num,
+                        output_img_dir=output_img_dir,
+                        save_coco_ann_as=save_coco_ann_as,
+                        sample_location_randomly=sample_location_randomly,
+                        min_x=min_x, min_y=min_y, max_x=max_x, 
+                        max_y=max_y, resize_height=resize_height, 
+                        resize_width=resize_width, 
+                        )
+    draw_bbox_and_polygons(annotation_path=save_coco_ann_as, 
+                            img_dir=output_img_dir, 
+                            visualize_dir=visualize_dir
+                            )
+
+
+#%%
+imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
+crop_paste_obj(object_to_cropped=objnames, 
+               imgnames_for_crop=imgnames_for_cropping,
+               img_dir=img_dir, 
+               coco_ann_file=coco_ann_path,bkgs=bkgs,
+               objs_paste_num=obj_paste_num,
+                output_img_dir="pasted_output_dir",
+                save_coco_ann_as="cpaug.json",
+                sample_location_randomly=True,
+                resize_height=50, 
+                resize_width=50
+               )
+
+#%%
+
+for i in range(0, 20):
+    print(f"Trial {i + 1}")
+    crop_paste_obj(object_to_cropped=objnames, 
+            imgnames_for_crop=imgnames_for_cropping,
+            img_dir=img_dir, 
+            coco_ann_file=coco_ann_path,bkgs=bkgs,
+            objs_paste_num=obj_paste_num,
+            output_img_dir="pasted_output_dir",
+            save_coco_ann_as="cpaug.json",
+            sample_location_randomly=True,
+            resize_height=50, 
+            resize_width=50
+            )
+     
+#%%
+draw_bbox_and_polygons(annotation_path="cpaug.json", 
+                            img_dir=img_dir
+                            )
+#%%
+paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
+                    objs_paste_num=obj_paste_num,
+                    output_img_dir="pasted_output_dir",
+                    save_coco_ann_as="cpaug.json",
+                    sample_location_randomly=True,
+                    resize_height=50, 
+                    resize_width=50
+                    )
+
+#%%
+all_crop_objects = collate_all_crops(object_to_cropped=objnames, imgnames_for_crop=imgnames_for_cropping,
+                                    img_dir=img_dir, coco_ann_file=coco_ann_path
+                                    )
 
 #%%
 
@@ -950,7 +1074,7 @@ def generate_random_images_and_annotation(image_height, image_width,
                                   )
     
     # generate annotations for image
-    return img_paths
+    return img_paths, save_ann_as
         
     
 
