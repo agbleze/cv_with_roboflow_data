@@ -161,8 +161,7 @@ def adjust_segmentation(bbox, segmentation):
         adjusted_segmentation.append(adjusted_polygon)
     return adjusted_segmentation
 
-#%%    ########## with resize   #########
-
+#%% 
 import os
 import cv2
 import numpy as np
@@ -175,7 +174,86 @@ def get_polygon_coordinates(mask):
         contour = contour.flatten().tolist()
         segmentation.append(contour)
     return segmentation
-            
+
+def get_adjusted_width_height(new_w, new_h, obj_w, obj_h):
+    if (new_w <= 0):
+        new_w = obj_w // 2
+    if (new_h <= 0):
+        new_h = obj_h // 2
+    return new_w, new_h
+
+def get_adjusted_object(x, y, resized_object, dest_image):
+    obj_bottom_loc = y+resized_object.shape[0]
+    obj_right_loc = x+resized_object.shape[1]
+    print(f"obj_bottom_loc: {obj_bottom_loc}")
+    print(f"obj_right_loc: {obj_right_loc}")
+    while obj_bottom_loc > dest_image.shape[0]:
+        obj_bottom_loc = dest_image.shape[0] - y  
+        print(f"reset obj_bottom_loc: to {obj_bottom_loc}")
+        resized_object = cv2.resize(resized_object, (resized_object.shape[1], 
+                                                    obj_bottom_loc
+                                                    ), 
+                                    interpolation=cv2.INTER_AREA
+                                    )
+        print(f"In obj_bottom_loc while loop")
+    while obj_right_loc > dest_image.shape[1]:
+        obj_right_loc = dest_image.shape[1] - x 
+        print(f"reset obj_right_loc: to {obj_right_loc}")
+        resized_object = cv2.resize(resized_object, (obj_right_loc, 
+                                                    resized_object.shape[0]
+                                                    ), 
+                                    interpolation=cv2.INTER_AREA
+                                    )
+        print(f"In obj_right_loc while loop")
+    return resized_object
+
+def get_paste_location_coordinate(sample_location_randomly, dest_w,
+                                dest_h
+                                ):
+    if sample_location_randomly:
+        min_x = random.random()
+        max_x = random.uniform(min_x, 1)
+        min_y = random.random()
+        max_y = random.uniform(min_y, 1)
+        x = int(min_x * dest_w)
+        y = int(min_y * dest_h)
+        max_x = int(max_x * dest_w)
+        max_y = int(max_y * dest_h)
+    else:
+        x = int(min_x * dest_w)
+        y = int(min_y * dest_h)
+        max_x = int(max_x * dest_w)
+        max_y = int(max_y * dest_h)
+    return x, y, max_x, max_y
+
+def get_resized_object(resize_w, resize_h, cropped_object,):
+    if resize_w and resize_h:
+        obj_h, obj_w = cropped_object.shape[:2]
+        aspect_ratio = obj_w / obj_h
+        if resize_w / resize_h > aspect_ratio:
+            resize_w = int(resize_h * aspect_ratio)
+        else:
+            resize_h = int(resize_w / aspect_ratio)
+        resized_object = cv2.resize(cropped_object, (resize_w, resize_h), 
+                                    interpolation=cv2.INTER_AREA
+                                    )
+    else:
+        resized_object = cropped_object
+    return resized_object
+
+def get_scaled_object_width_height(x, y, max_x, max_y, obj_w, obj_h):
+    scale_x = (max_x - x) / obj_w
+    if scale_x <= 0:
+        scale_x = 0.1
+    scale_y = (max_y - y) / obj_h
+    if scale_y <= 0:
+        scale_y = 0.1
+        
+    scale = min(scale_x, scale_y)
+    new_w = int(obj_w * scale)
+    new_h = int(obj_h * scale)
+    return new_w, new_h
+                            
 def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]], 
                  min_x=None, min_y=None, 
                  max_x=None, max_y=None, 
@@ -186,9 +264,6 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]],
     dest_image = cv2.imread(dest_img_path, cv2.IMREAD_UNCHANGED)
     dest_image = cv2.cvtColor(dest_image, cv2.COLOR_BGR2RGB)
     dest_h, dest_w = dest_image.shape[:2]
-
-    # if not isinstance(cropped_objects, list):
-    #     cropped_objects = [cropped_objects]
         
     if not isinstance(cropped_objects, dict):
         raise ValueError(f"""cropped_objects is expected to be a dictionary of 
@@ -202,75 +277,36 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]],
         if not isinstance(cat_cropped_objects, list):
             cat_cropped_objects = [cat_cropped_objects]
         for cropped_object in cat_cropped_objects:
-            #print(f"cropped_object: {cropped_object.shape}")
-            if sample_location_randomly:
-                min_x = random.random()
-                max_x = random.uniform(min_x, 1)
-                min_y = random.random()
-                max_y = random.uniform(min_y, 1)
-                
-                x = int(min_x * dest_w)
-                y = int(min_y * dest_h)
-                max_x = int(max_x * dest_w)
-                max_y = int(max_y * dest_h)
-            else:
-                x = int(min_x * dest_w)
-                y = int(min_y * dest_h)
-                max_x = int(max_x * dest_w)
-                max_y = int(max_y * dest_h)
-                
-            if resize_w and resize_h:
-                #print(f"cropped_object: {cropped_object} \n")
-                obj_h, obj_w = cropped_object.shape[:2]
-                aspect_ratio = obj_w / obj_h
-                if resize_w / resize_h > aspect_ratio:
-                    resize_w = int(resize_h * aspect_ratio)
-                else:
-                    resize_h = int(resize_w / aspect_ratio)
-                resized_object = cv2.resize(cropped_object, (resize_w, resize_h), interpolation=cv2.INTER_AREA)
-            else:
-                resized_object = cropped_object
+            x, y, max_x, max_y = get_paste_location_coordinate(sample_location_randomly=sample_location_randomly, 
+                                                               dest_w=dest_w,
+                                                                dest_h=dest_h
+                                                                )
+            
+            resized_object = get_resized_object(resize_w=resize_w, resize_h=resize_h, 
+                                                cropped_object=cropped_object
+                                                )   
 
             # Ensure the resized object fits within the specified area
             obj_h, obj_w = resized_object.shape[:2]
             if obj_w > (max_x - x) or obj_h > (max_y - y):
-                scale_x = (max_x - x) / obj_w
-                if scale_x <= 0:
-                    scale_x = 0.1
-                scale_y = (max_y - y) / obj_h
-                if scale_y <= 0:
-                    scale_y = 0.1
-                    
-                scale = min(scale_x, scale_y)
-                new_w = int(obj_w * scale)
-                new_h = int(obj_h * scale)
+                new_w, new_h = get_scaled_object_width_height(x, y, max_x, max_y, 
+                                                              obj_w=obj_w, obj_h=obj_h
+                                                              )
+                new_w, new_h = get_adjusted_width_height(new_w=new_w, 
+                                                         new_h=new_h,
+                                                         obj_w=obj_w, 
+                                                         obj_h=obj_h
+                                                         )    
+                resized_object = cv2.resize(resized_object, (new_w, new_h), 
+                                            interpolation=cv2.INTER_AREA
+                                            )
+            resized_object = get_adjusted_object(x=x, y=y, 
+                                                 resized_object=resized_object,
+                                                 dest_image=dest_image
+                                                 )
                 
-                if (new_w <= 0) or (new_h <= 0):
-                    print(f"""forcing the resized objects height and width
-                          to be within the paste location specified
-                          results in object height of {new_h} and object width of {new_w}
-                          hence the resized objects is used without forcing into paste location.
-                          This can lead to paste objects extending outside the paste location
-                          
-                          """)
-                    print(f"new_w: {new_w}\n")
-                    print(f"new_h: {new_h}\n")
-                    new_w = obj_w // 3
-                    new_h = obj_h // 3
-                    print(f"""Halved the obj height to {new_h} and obj width to {new_w}
-                          """
-                          )
-                    
-                else:
-                    print(f"new_w: {new_w}\n")
-                    print(f"new_h: {new_h}\n")
-                resized_object = cv2.resize(resized_object, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-            # Create a mask for the resized object
-            #print(f"resized_object: {resized_object.shape} \n")
             if resized_object.shape[2] == 3:
                 resized_object = cv2.cvtColor(resized_object, cv2.COLOR_RGB2RGBA)
-                #print(f"after resized object to RGBA: {resized_object.shape}")
             mask = resized_object[:, :, 3]
             mask_inv = cv2.bitwise_not(mask)
             resized_object = resized_object[:, :, :3]
@@ -308,24 +344,8 @@ def paste_object(dest_img_path, cropped_objects: Dict[str, List[np.ndarray]],
                 print(f"x+resized_object.shape[1]: {x+resized_object.shape[1]}")
                 print(f"y: {y}")
                 print(f"x: {x}")
+                print(f"resized_object: {resized_object.shape}")
                 dest_image[y:y+resized_object.shape[0], x:x+resized_object.shape[1]] = dst
-
-            # Calculate the bounding box
-            #bbox = [x, y, resized_object.shape[1], resized_object.shape[0]]
-            # Calculate the segmentation 
-            # changed mask to resized_object
-            
-            # contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            # segmentation = []
-            # for contour in contours:
-            #     contour = contour.flatten().tolist()
-            #     segmentation.append(contour)
-                
-            # # bboxes.append(bbox)
-            # # translate segmentation here
-            # adjusted_segmentation = adjust_segmentation(bbox=bbox, segmentation=segmentation)
-            
-            #segmentations.append(segmentation)
                 segmentations.append(adjusted_segmentation)
                 category_ids.append(int(cat_id))
                 bboxes.append(bbox)
@@ -583,6 +603,7 @@ img_dir= "/home/lin/codebase/cv_with_roboflow_data/images"
 imgname = "494.jpg"
 objnames = ["ripe", "unripe", "flowers"]
 
+#%%
 cropped_obj_collect = crop_obj_per_image(obj_names=objnames, imgname=imgname, img_dir=img_dir,
                                         coco_ann_file=coco_ann_path
                                         )
@@ -613,75 +634,33 @@ unripe[:,:,1]
 Image.fromarray(unripe)
 #%%
 Image.fromarray(cropped_obj_collect["ripe"][2])
-#%%
-#cropped_obj_collect["unripe"][2]
-
 
 #%%
 imgnames_for_cropping = ["0.jpg", "1235.jpg", "494.jpg", "446.jpg", "10.jpg"]
-# all_crop_objects = crop_obj_per_image(obj_names=objnames, imgnames=imgnames_for_cropping, img_dir=img_dir,
-#                    coco_ann_file=coco_ann_path)
 
 
-
-#%% # pseudo code
+#%%
 def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
                       coco_ann_file
                       ):
-    #all_crops = {obj: [] for obj in object_to_cropped}
-    #allimg_crops = []
     all_crops = {}
     for img in imgnames_for_crop:
-        #print(f"starting all_crops: {all_crops.keys()} \n")
-        #print(f"img: {img}")
         crop_obj = crop_obj_per_image(obj_names=object_to_cropped, 
                                       imgname=img, 
                                     img_dir=img_dir,
                                     coco_ann_file=coco_ann_file
                                     )
-        #print(f"crop_obj: {crop_obj} \n")
         for each_object in crop_obj.keys():
             if each_object not in all_crops.keys():
                 all_crops[each_object] = crop_obj[each_object]
             else:
-                #print(f"each_object: {each_object}\n all_crops: {all_crops.keys()}")
                 cpobjs = crop_obj[each_object]
                 if all_crops[each_object] is None:
                     all_crops[each_object] = cpobjs
                 else:
-                    #print(f"in else: {all_crops[each_object]}\n")
                     for idx, cpobj in enumerate(cpobjs): 
-                        #print(f"idx: {idx}")
-                        #append_obj = all_crops[each_object]
-                        #print(f"img: {img} len(append_obj): {len(append_obj)} \n type(append_obj): {type(append_obj)}")
-                        #all_crops[each_object] = append_obj.append(cpobj)
                         all_crops[each_object].append(cpobj)
-                        #print(f"idx: {idx} img: {img} successful appending")
-                        #print(f"all_crops[each_object]: {all_crops[each_object]}")
-        #print(f"finished all_crops: {all_crops.keys()} \n")            
-                    
     return all_crops
-    #     allimg_crops.append(crop_obj)
-        
-    # if allimg_crops:
-    #     for crop_res in allimg_crops:
-    #         ######  CONTINUE FROM HERE ##############
-        
-        
-    #     if crop_obj:
-    #         for crop in crop_obj:
-    #             #print(f"{crop}: {len(crop_obj[crop])} \n")
-    #             crop_obj_maskslist = crop_obj[crop]
-    #             for crop_mask in crop_obj_maskslist:
-    #                 if all_crops[crop] is None:
-    #                     all_crops[crop] = [crop_mask]
-    #                     print(f"In none")
-    #                 else:
-    #                     all_crops[crop] = all_crops[crop].append(crop_mask)
-    #                     print(f"outside none")
-                    
-    # return all_crops
-
 
 #%%
 
@@ -736,16 +715,9 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict,
                 }
     ann_ids = []
     for bkg_idx, bkg in enumerate(bkgs):
-        # for obj_idx, obj in enumerate(objs_paste_num):
-        #     num_obj = objs_paste_num[obj]
-        #     objs_to_paste = all_crops[obj]
-        #     sampled_obj = random.sample(objs_to_paste, int(num_obj))
         sampled_obj = {obj_idx+1: random.sample(all_crops[obj], int(objs_paste_num[obj])) 
                        for obj_idx, obj in enumerate(sorted(objs_paste_num))
-                       }    
-            # for multiple objects, last pasted object is overriding the first pasted
-            # TODO: sample all objects to be pasted at once and send for pasting
-            
+                       }
         dest_img, bboxes, segmasks, category_ids = paste_object(dest_img_path=bkg,  ## showed also return the obj_idx as category_id
                                                                 cropped_objects=sampled_obj,
                                                                 min_x=min_x, min_y=min_y, max_x=max_x,
@@ -759,20 +731,12 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict,
         cv2.imwrite(img_path, dest_img)
         assert(len(bboxes) == len(segmasks) == len(category_ids)), f"""bboxes: {len(bboxes)}, segmasks: {len(segmasks)} and category_ids: {len(category_ids)} are not equal length"""
                     
-        #image = cv2.imread(bkg)
         img_height, img_width = dest_img.shape[0], dest_img.shape[1]
-        img_id = bkg_idx+1
-        
-        
+        img_id = bkg_idx+1        
         image_info = {"file_name": file_name, "height": img_height, 
                         "width": img_width, "id": img_id
                         }
-        #obj_category = {"id": obj_idx + 1, "name": obj}
-        #coco_ann["categories"] = 
-        #coco_ann["categories"].append(obj_category)
-        #coco_ann["images"] = 
-        coco_ann["images"].append(image_info)
-        
+        coco_ann["images"].append(image_info)        
         for ann_ins in range(0, len(bboxes)):
             bbox = bboxes[ann_ins]
             segmask = segmasks[ann_ins]
@@ -784,8 +748,7 @@ def paste_crops_on_bkgs(bkgs, all_crops, objs_paste_num: Dict,
                         "category_id": category_id,
                         "bbox": bbox,
                         "segmentation": segmask
-                        } 
-            #coco_ann["annotations"] = 
+                        }
             coco_ann["annotations"].append(annotation)
     with open(save_coco_ann_as, "w") as filepath:
         json.dump(coco_ann, filepath)            
@@ -817,7 +780,11 @@ selected_imgs = "/home/lin/codebase/cv_with_roboflow_data/selected_imgs"
 for imgpath in bkgs:
     shutil.copy(imgpath, selected_imgs)
 #%%
-obj_paste_num = {"ripe": 2, "unripe": 2}    
+# The code `obj_paste_num` is not doing anything in the provided snippet. It seems to be a variable
+# name that has not been assigned any value or used in any operation.
+obj_paste_num = {"ripe": 2, "unripe": 2} 
+
+#%%
 paste_crops_on_bkgs(bkgs=bkgs, all_crops=all_crop_objects, 
                     objs_paste_num=obj_paste_num,
                     output_img_dir="pasted_output_dir",
@@ -905,7 +872,6 @@ draw_bbox_and_polygons(annotation_path="cpaug.json",
 
 
 #%%
-
 def crop_paste_obj(object_to_cropped, imgnames_for_crop, img_dir,
                     coco_ann_file, bkgs, objs_paste_num,
                     output_img_dir, save_coco_ann_as,
@@ -950,7 +916,7 @@ crop_paste_obj(object_to_cropped=objnames,
 
 #%%
 
-for i in range(0, 20):
+for i in range(0, 100):
     print(f"Trial {i + 1}")
     crop_paste_obj(object_to_cropped=objnames, 
             imgnames_for_crop=imgnames_for_cropping,
@@ -961,7 +927,8 @@ for i in range(0, 20):
             save_coco_ann_as="cpaug.json",
             sample_location_randomly=True,
             resize_height=50, 
-            resize_width=50
+            resize_width=50,
+            visualize_dir="debug_cpaug_viz"
             )
      
 #%%
