@@ -528,8 +528,7 @@ from typing import Union
 def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
                        coco_ann_file: str
                        ) -> Union[Dict[str,List], None]:
-    #cropped_objs_collection = {obj: [] for obj in obj_names}
-    #print(f"cropped_objs_collection: {cropped_objs_collection} \n")
+    imgname = os.path.basename(imgname)
     cropped_objs_collection = {}
     # get objs in image
     with open(coco_ann_file, "r") as filepath:
@@ -540,11 +539,8 @@ def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
     category_name_to_id_map = {cat["name"]: cat["id"] for cat in categories}
     
     coco = COCO(coco_ann_file)
-    # if isinstance(imgnames, str):
-    #     imgnames = [imgnames]
     images = coco_data["images"]
-    # for imgname in imgnames:
-    image_info = [img_info for img_info in images if img_info["file_name"]==imgname][0]
+    image_info = [img_info for img_info in images if os.path.basename(img_info["file_name"])==imgname][0]
     image_id = image_info["id"]
     image_height = image_info["height"]
     image_width = image_info["width"]
@@ -557,15 +553,12 @@ def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
     objs_to_crop = set(img_objnames).intersection(set(obj_names))
     if objs_to_crop:
         for objname in obj_names:
-            #print(f"objname: {objname} \n")
             object_masks = []
             if objname in img_objnames:
                 obj_id = category_name_to_id_map[objname]
                 for ann in img_ann:
                     if ann["category_id"] == obj_id:
                         mask = coco.annToMask(ann)
-                        #mask = annToMask(ann=ann, height=image_height, width=image_width)
-                        
                         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                         for contour in contours:
                             x, y, w, h = cv2.boundingRect(contour)
@@ -575,27 +568,14 @@ def crop_obj_per_image(obj_names: list, imgname: Union[str, List], img_dir,
                                                              mask=mask_cropped)
                             # Remove the background (set to transparent)
                             cropped_object = cv2.cvtColor(cropped_object, cv2.COLOR_BGR2RGBA)
-                            #print(f"mask_cropped: {mask_cropped.shape} \n")
-                            #print(f"new mask_cropped[:,:] {mask_cropped[:,:].shape} \n")
                             cropped_object[:, :, 3] = mask_cropped * 255
                             object_masks.append(cropped_object)
-                            #print(f"in contours loop cropped_objs_collection[objname]: {cropped_objs_collection[objname]} \n")
-                            #cropped_objs_collection[objname] = cropped_objs_collection[objname].append([cropped_object])
-            #print(f"imgname: {imgname},  objname: {objname}")
                 if objname not in cropped_objs_collection.keys():
                     cropped_objs_collection[objname] = object_masks
-                    #print(f"cropped_objs_collection: {cropped_objs_collection.keys()} \n")
                 else:
                     for each_mask in object_masks:
-                        #print(f"each mask cropped_objs_collection: {cropped_objs_collection.keys()} \n")
-                        #print(f"{objname}: {cropped_objs_collection[objname]} \n")
-                        #cropped_objs_collection[objname] = 
                         cropped_objs_collection[objname].append(each_mask)
-            
-            
     return cropped_objs_collection
-        #else:
-        #    return None
 
 #%%
 coco_ann_path = "/home/lin/codebase/cv_with_roboflow_data/tomato_coco_annotation/annotations/instances_default.json"
@@ -645,6 +625,7 @@ def collate_all_crops(object_to_cropped, imgnames_for_crop, img_dir,
                       ):
     all_crops = {}
     for img in imgnames_for_crop:
+        img = os.path.basename(img)
         crop_obj = crop_obj_per_image(obj_names=object_to_cropped, 
                                       imgname=img, 
                                     img_dir=img_dir,
@@ -981,6 +962,40 @@ B. use A to test the copy paste functions
 """
 
 #%%
+import json
+import cv2
+
+# Load COCO Annotations
+with open('annotations.json') as f:
+    coco_data = json.load(f)
+
+# Extract BBox and Segmentation
+annotations = coco_data['annotations']
+
+for ann in annotations:
+    bbox = ann['bbox']
+    segmentation = ann['segmentation']
+    # Process bbox and segmentation
+
+# Function to identify occlusion
+def is_occluded(bbox1, bbox2):
+    x1, y1, w1, h1 = bbox1
+    x2, y2, w2, h2 = bbox2
+    if x1 < x2 + w2 and x1 + w1 > x2 and y1 < y2 + h2 and y1 + h1 > y2:
+        return True
+    return False
+
+# Identify occluded images
+occluded_annotations = []
+for i, ann1 in enumerate(annotations):
+    for j, ann2 in enumerate(annotations):
+        if i != j and is_occluded(ann1['bbox'], ann2['bbox']):
+            occluded_annotations.append((ann1, ann2))
+
+# Adjusting BBox and Segmentation: You'd need some heavy logic here to separate occluded parts
+
+
+#%%
 from randimage import get_random_image
 from tqdm import tqdm
 import matplotlib
@@ -995,13 +1010,12 @@ def save_random_imgs(img_size, save_as):
 def save_random_img_wrapper(args):
     save_random_imgs(**args)
     
-def generate_random_images_and_annotation(image_height, image_width,
-                                        number_of_images, output_dir=None,
-                                        img_ext=None,
-                                        image_name=None,
-                                        parallelize=True,
-                                        save_ann_as="generated_annotation.json"
-                                        ):
+def generate_random_images(image_height, image_width,
+                            number_of_images, output_dir=None,
+                            img_ext=None,
+                            image_name=None,
+                            parallelize=True
+                            ):
     if not output_dir:
         output_dir = "random_images"
     if not image_name:
@@ -1033,7 +1047,25 @@ def generate_random_images_and_annotation(image_height, image_width,
                       desc="Generating images in multiprocessing"
                       )
                  )
-    img_paths = glob(f"{output_dir}/*")
+    img_paths =  glob(f"{output_dir}/*")
+    return img_paths       
+
+
+def generate_random_images_and_annotation(image_height, image_width,
+                                        number_of_images, output_dir=None,
+                                        img_ext=None,
+                                        image_name=None,
+                                        parallelize=True,
+                                        save_ann_as="generated_annotation.json"
+                                        ):            
+    img_paths = generate_random_images(image_height=image_height, 
+                                       image_width=image_width,
+                                        number_of_images=number_of_images, 
+                                        output_dir=output_dir,
+                                        img_ext=img_ext,
+                                        image_name=image_name,
+                                        parallelize=parallelize
+                                        )
     generate_coco_annotation_file(image_width=image_width, 
                                   image_height=image_height, 
                                   output_path=save_ann_as, 
@@ -1046,10 +1078,56 @@ def generate_random_images_and_annotation(image_height, image_width,
     
 
 # %%
-generate_random_images_and_annotation(image_height=124, image_width=124,
-                                    number_of_images=10, output_dir=None,
-                                    img_ext=None,
-                                    image_name=None,
-                                    parallelize=True
-                                    )
+img_paths, gen_coco_path = generate_random_images_and_annotation(image_height=124, image_width=124,
+                                                                number_of_images=10, output_dir=None,
+                                                                img_ext=None,
+                                                                image_name=None,
+                                                                parallelize=True
+                                                                )
 # %%
+random_bkg_images = generate_random_images(image_height=124, image_width=124,
+                                            number_of_images=10, 
+                                            output_dir="random_bkg_images",
+                                            img_ext=None,
+                                            image_name="rand_bkg",
+                                            parallelize=True
+                                            )
+# %%
+crop_paste_obj(object_to_cropped=["object_1", "object_2", "object_3"], 
+               imgnames_for_crop=img_paths,
+            #    ["random_image_0.jpg", "random_image_1.jpg",
+            #                      "random_image_2.jpg", "random_image_3.jpg",
+            #                      "random_image_4.jpg", "random_image_5.jpg",
+            #                      "random_image_6.jpg", "random_image_7.jpg",
+            #                      "random_image_8.jpg", "random_image_9.jpg"
+            #                      ], 
+               img_dir="random_images",
+            coco_ann_file="/home/lin/codebase/cv_with_roboflow_data/generated_annotation.json", 
+            bkgs=random_bkg_images, 
+            objs_paste_num={"object_1":1, "object_2":1},
+            output_img_dir="random_cpaug", 
+            save_coco_ann_as="rand_cpaug_ann.json",
+            min_x=None, min_y=None, 
+            max_x=None, max_y=None, 
+            resize_width=50, resize_height=50,
+            sample_location_randomly=True,
+            visualize_dir="rand_cpaug_visualize_bbox_and_polygons"
+            )
+
+
+
+#%%
+crop_paste_obj(object_to_cropped=objnames, 
+            imgnames_for_crop=imgnames_for_cropping,
+            img_dir=img_dir, 
+            coco_ann_file=coco_ann_path,bkgs=bkgs,
+            objs_paste_num=obj_paste_num,
+            output_img_dir="pasted_output_dir",
+            save_coco_ann_as="cpaug.json",
+            sample_location_randomly=True,
+            #resize_height=50, 
+            #resize_width=50,
+            visualize_dir="debug_cpaug_viz"
+            )
+
+
